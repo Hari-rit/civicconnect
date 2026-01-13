@@ -5,7 +5,10 @@ const {
   getComplaintsByUser
 } = require("../controllers/complaintController");
 
-router.post("/complaints", createComplaint);
-router.get("/complaints/:userId", getComplaintsByUser);
+// POST http://localhost:5000/complaints
+router.post("/", createComplaint);
+
+// GET http://localhost:5000/complaints/:userId
+router.get("/:userId", getComplaintsByUser);
 
 module.exports = router;

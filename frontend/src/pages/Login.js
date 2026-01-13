@@ -32,7 +32,7 @@ function Login() {
     setError("");
 
     try {
-      const res = await axios.post("http://localhost:5000/login", form);
+      const res = await axios.post("http://localhost:5000/auth/login", form);
 
       // ✅ store logged-in user
       localStorage.setItem("user", JSON.stringify(res.data.user));

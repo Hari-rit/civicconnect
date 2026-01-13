@@ -1,14 +1,28 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 function SubmitComplaint() {
-  const user = JSON.parse(localStorage.getItem("user"));
+  const navigate = useNavigate();
 
+  // ✅ Hooks MUST be at top level
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const [location, setLocation] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [user, setUser] = useState(null);
+
+  // ✅ Session check AFTER hooks
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem("user"));
+    if (!storedUser || !storedUser.id) {
+      alert("Session expired. Please login again.");
+      navigate("/login");
+    } else {
+      setUser(storedUser);
+    }
+  }, [navigate]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -22,7 +36,7 @@ function SubmitComplaint() {
     e.preventDefault();
     setError("");
 
-    if (!image || !location) {
+    if (!image || !location.trim()) {
       setError("Please upload an image and enter location");
       return;
     }
@@ -36,14 +50,16 @@ function SubmitComplaint() {
         }
       });
 
-      // ✅ Mark that user has submitted a complaint
       localStorage.setItem("hasComplaint", "true");
-
       setSubmitted(true);
     } catch (err) {
+      console.error(err);
       setError("Failed to submit complaint. Please try again.");
     }
   };
+
+  // Prevent render until session check completes
+  if (!user) return null;
 
   return (
     <div className="container mt-4">
@@ -80,7 +96,7 @@ function SubmitComplaint() {
               </div>
             )}
 
-            {/* Location Input */}
+            {/* Location */}
             <div className="mb-3">
               <label className="form-label">
                 <strong>Location *</strong>
@@ -108,7 +124,7 @@ function SubmitComplaint() {
             <p><strong>Status:</strong> Submitted</p>
             <p><strong>Location:</strong> {location}</p>
             <p>
-              You can now track the complaint status from the <strong>Status</strong> tab.
+              You can now track the complaint from the <strong>Status</strong> tab.
             </p>
           </div>
         )}

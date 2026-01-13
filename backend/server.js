@@ -18,9 +18,9 @@ mongoose
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.error("MongoDB connection error:", err));
 
-// Routes
-app.use("/", authRoutes);        // /register, /login
-app.use("/", complaintRoutes);   // /complaints
+// ✅ ROUTE NAMESPACING (IMPORTANT)
+app.use("/auth", authRoutes);          // /auth/register, /auth/login
+app.use("/complaints", complaintRoutes);
 
 // Server start
 app.listen(5000, () => {
