@@ -7,18 +7,30 @@ const ComplaintSchema = new mongoose.Schema(
       ref: "User",
       required: true
     },
-    imageName: { type: String, required: true },
-    location: {
-      area: { type: String, required: true },
-      ward: String,
-      panchayat: String
+
+    media: {
+      type: {
+        type: String,
+        enum: ["image", "video"],
+        required: true
+      },
+      path: {
+        type: String,
+        required: true
+      }
     },
+
+    location: {
+      area: { type: String, required: true }
+    },
+
     status: {
       statusId: { type: Number, default: 1 },
       statusName: { type: String, default: "Submitted" }
     },
-    category: { type: String, default: "Pending" }, // AI later
-    priority: { type: String, default: "Pending" }  // AI later
+
+    category: { type: String, default: "Pending" },
+    priority: { type: String, default: "Pending" }
   },
   { timestamps: true }
 );

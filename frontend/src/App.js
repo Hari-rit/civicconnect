@@ -13,11 +13,6 @@ const getUser = () => {
   return user ? JSON.parse(user) : null;
 };
 
-// Helper: check if user has submitted at least one complaint
-const hasSubmittedComplaint = () => {
-  return localStorage.getItem("hasComplaint") === "true";
-};
-
 // Protected Route component
 const ProtectedRoute = ({ children, role }) => {
   const user = getUser();
@@ -39,7 +34,6 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem("user");
-    localStorage.removeItem("hasComplaint"); // reset state
     navigate("/login");
   };
 
@@ -52,22 +46,22 @@ function App() {
         </Link>
 
         {/* LEFT LINKS */}
-        {user && (
+        {user && user.role === "citizen" && (
           <div className="navbar-nav">
-            {user.role === "citizen" && (
-              <>
-                <Link className="nav-link" to="/submit">Submit</Link>
+            <Link className="nav-link" to="/submit">
+              Submit
+            </Link>
+            <Link className="nav-link" to="/status">
+              Status
+            </Link>
+          </div>
+        )}
 
-                {/* Status shown ONLY after complaint submission */}
-                {hasSubmittedComplaint() && (
-                  <Link className="nav-link" to="/status">Status</Link>
-                )}
-              </>
-            )}
-
-            {user.role === "authority" && (
-              <Link className="nav-link" to="/authority">Authority</Link>
-            )}
+        {user && user.role === "authority" && (
+          <div className="navbar-nav">
+            <Link className="nav-link" to="/authority">
+              Authority
+            </Link>
           </div>
         )}
 
@@ -75,8 +69,12 @@ function App() {
         <div className="ms-auto navbar-nav">
           {!user ? (
             <>
-              <Link className="nav-link" to="/login">Login</Link>
-              <Link className="nav-link" to="/register">Register</Link>
+              <Link className="nav-link" to="/login">
+                Login
+              </Link>
+              <Link className="nav-link" to="/register">
+                Register
+              </Link>
             </>
           ) : (
             <>
@@ -100,7 +98,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Citizen protected routes */}
+        {/* Citizen routes */}
         <Route
           path="/submit"
           element={
@@ -118,7 +116,7 @@ function App() {
           }
         />
 
-        {/* Authority protected route */}
+        {/* Authority route */}
         <Route
           path="/authority"
           element={

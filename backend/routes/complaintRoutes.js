@@ -1,14 +1,29 @@
 const express = require("express");
 const router = express.Router();
+const multer = require("multer");
+const path = require("path");
+
 const {
   createComplaint,
-  getComplaintsByUser
+  getComplaintsByUser,
+  getAllComplaints,
+  updateComplaintStatus
 } = require("../controllers/complaintController");
 
-// POST http://localhost:5000/complaints
-router.post("/", createComplaint);
+// Multer config
+const storage = multer.diskStorage({
+  destination: "uploads/",
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
 
-// GET http://localhost:5000/complaints/:userId
-router.get("/:userId", getComplaintsByUser);
+const upload = multer({ storage });
+
+// Routes
+router.post("/", upload.single("media"), createComplaint);
+router.get("/user/:userId", getComplaintsByUser);
+router.get("/", getAllComplaints);
+router.put("/:id/status", updateComplaintStatus);
 
 module.exports = router;

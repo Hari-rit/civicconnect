@@ -1,38 +1,45 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
 
 function ComplaintStatus() {
-  const navigate = useNavigate();
+  const storedUser = JSON.parse(localStorage.getItem("user"));
+  const userId = storedUser?.id || storedUser?._id;
 
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [zoomMedia, setZoomMedia] = useState(null);
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user"));
+    const fetchComplaints = async () => {
+      try {
+        if (!userId) {
+          setError("User not logged in");
+          return;
+        }
 
-    // 🔐 Session check
-    if (!user || !user.id) {
-      alert("Session expired. Please login again.");
-      navigate("/login");
-      return;
-    }
-
-    // 📡 Fetch complaints for this user
-    axios
-      .get(`http://localhost:5000/complaints/${user.id}`)
-      .then((res) => {
+        const res = await axios.get(
+          `http://localhost:5000/complaints/user/${userId}`
+        );
         setComplaints(res.data);
+      } catch (err) {
+        setError("Failed to load complaint status");
+      } finally {
         setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setError("Failed to load complaints");
-        setLoading(false);
-      });
-  }, [navigate]);
+      }
+    };
 
+    fetchComplaints();
+  }, [userId]);
+
+  const getStatusBadge = (status) => {
+    if (status === "Submitted") return "secondary";
+    if (status === "In Progress") return "warning";
+    if (status === "Resolved") return "success";
+    return "secondary";
+  };
+
+  /* ================= LOADING ================= */
   if (loading) {
     return (
       <div className="container mt-4">
@@ -41,45 +48,136 @@ function ComplaintStatus() {
     );
   }
 
+  /* ================= ERROR ================= */
+  if (error) {
+    return (
+      <div className="container mt-4">
+        <div className="alert alert-danger">{error}</div>
+      </div>
+    );
+  }
+
+  /* ================= EMPTY ================= */
+  if (complaints.length === 0) {
+    return (
+      <div className="container mt-4">
+        <div className="alert alert-warning">
+          No complaints found.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mt-4">
-      <h3 className="mb-3">My Complaint Status</h3>
+      <h3 className="mb-4">My Complaint Status</h3>
 
-      {error && <div className="alert alert-danger">{error}</div>}
+      {complaints.map((c, index) => (
+        <div className="card shadow-sm mb-4" key={c._id}>
+          <div className="card-body">
+            <h5 className="mb-3">Complaint #{index + 1}</h5>
 
-      {complaints.length === 0 ? (
-        <div className="alert alert-warning">
-          You have not submitted any complaints yet.
-        </div>
-      ) : (
-        complaints.map((complaint) => (
-          <div key={complaint._id} className="card shadow p-3 mb-3">
-            <p>
-              <strong>Image:</strong> {complaint.imageName}
-            </p>
-            <p>
-              <strong>Location:</strong>{" "}
-              {complaint.location?.area || "N/A"}
-            </p>
+            {/* ================= MEDIA ================= */}
+            {c.media ? (
+              <div className="mb-3">
+                {c.media.type === "image" ? (
+                  <>
+                    <img
+                      src={`http://localhost:5000${c.media.path}`}
+                      alt="complaint"
+                      className="img-thumbnail"
+                      style={{
+                        maxWidth: "250px",
+                        cursor: "zoom-in"
+                      }}
+                      onClick={() =>
+                        setZoomMedia(
+                          `http://localhost:5000${c.media.path}`
+                        )
+                      }
+                    />
+
+                    <div className="mt-2">
+                      <a
+                        href={`http://localhost:5000${c.media.path}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-sm btn-outline-primary"
+                      >
+                        Open in New Tab
+                      </a>
+                    </div>
+                  </>
+                ) : (
+                  <video
+                    src={`http://localhost:5000${c.media.path}`}
+                    controls
+                    className="w-100"
+                  />
+                )}
+              </div>
+            ) : (
+              <div className="alert alert-secondary">
+                No media available
+              </div>
+            )}
+
+            <p><strong>Location:</strong> {c.location?.area || "N/A"}</p>
+
             <p>
               <strong>Status:</strong>{" "}
-              <span className="text-primary">
-                {complaint.status?.statusName}
+              <span
+                className={`badge bg-${getStatusBadge(
+                  c.status?.statusName
+                )}`}
+              >
+                {c.status?.statusName}
               </span>
             </p>
-            <p>
-              <strong>Category:</strong> {complaint.category}
+
+            <p><strong>Category:</strong> Pending</p>
+            <p><strong>Priority:</strong> Pending</p>
+
+            <hr />
+
+            <p className="text-muted mb-1">
+              <strong>Submitted:</strong>{" "}
+              {new Date(c.createdAt).toLocaleString()}
             </p>
-            <p>
-              <strong>Priority:</strong> {complaint.priority}
+            <p className="text-muted">
+              <strong>Last Updated:</strong>{" "}
+              {new Date(c.updatedAt).toLocaleString()}
             </p>
 
-            {/* Citizen is READ-ONLY */}
-            <div className="alert alert-info mb-0">
-              Status updates will be performed by the concerned authority.
+            <div className="alert alert-info mt-3 mb-0">
+              Status updates are handled by the concerned authority.
             </div>
           </div>
-        ))
+        </div>
+      ))}
+
+      {/* ================= MEDIA ZOOM OVERLAY ================= */}
+      {zoomMedia && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100"
+          style={{
+            background: "rgba(0,0,0,0.85)",
+            zIndex: 2000
+          }}
+          onClick={() => setZoomMedia(null)}
+        >
+          <div className="d-flex justify-content-center align-items-center h-100">
+            <img
+              src={zoomMedia}
+              alt="zoom"
+              className="img-fluid rounded"
+              style={{
+                maxWidth: "90%",
+                maxHeight: "90%"
+              }}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

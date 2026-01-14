@@ -5,30 +5,32 @@ import { useNavigate } from "react-router-dom";
 function SubmitComplaint() {
   const navigate = useNavigate();
 
-  // ✅ Hooks MUST be at top level
-  const [image, setImage] = useState(null);
+  const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [location, setLocation] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [user, setUser] = useState(null);
 
-  // ✅ Session check AFTER hooks
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user"));
     if (!storedUser || !storedUser.id) {
-      alert("Session expired. Please login again.");
       navigate("/login");
     } else {
       setUser(storedUser);
     }
   }, [navigate]);
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImage(file);
-      setPreview(URL.createObjectURL(file));
+  const handleFileChange = (e) => {
+    const selected = e.target.files[0];
+    if (!selected) return;
+
+    setFile(selected);
+
+    if (selected.type.startsWith("image")) {
+      setPreview(URL.createObjectURL(selected));
+    } else {
+      setPreview(null);
     }
   };
 
@@ -36,29 +38,29 @@ function SubmitComplaint() {
     e.preventDefault();
     setError("");
 
-    if (!image || !location.trim()) {
-      setError("Please upload an image and enter location");
+    if (!file || !location.trim()) {
+      setError("All fields are required");
       return;
     }
 
     try {
-      await axios.post("http://localhost:5000/complaints", {
-        userId: user.id,
-        imageName: image.name,
-        location: {
-          area: location
-        }
-      });
+      const formData = new FormData();
+      formData.append("media", file);
+      formData.append("area", location);
+      formData.append("userId", user.id);
 
-      localStorage.setItem("hasComplaint", "true");
+      await axios.post(
+        "http://localhost:5000/complaints",
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+
       setSubmitted(true);
     } catch (err) {
-      console.error(err);
-      setError("Failed to submit complaint. Please try again.");
+      setError("Failed to submit complaint");
     }
   };
 
-  // Prevent render until session check completes
   if (!user) return null;
 
   return (
@@ -70,23 +72,21 @@ function SubmitComplaint() {
 
         {!submitted ? (
           <form onSubmit={handleSubmit}>
-            {/* Image Upload */}
             <div className="mb-3">
               <label className="form-label">
-                <strong>Upload Issue Image *</strong>
+                <strong>Upload Image / Video *</strong>
               </label>
               <input
                 type="file"
+                accept="image/*,video/*"
                 className="form-control"
-                accept="image/*"
-                onChange={handleImageChange}
+                onChange={handleFileChange}
+                required
               />
             </div>
 
-            {/* Image Preview */}
             {preview && (
               <div className="mb-3">
-                <p className="mb-1">Image Preview:</p>
                 <img
                   src={preview}
                   alt="preview"
@@ -96,7 +96,6 @@ function SubmitComplaint() {
               </div>
             )}
 
-            {/* Location */}
             <div className="mb-3">
               <label className="form-label">
                 <strong>Location *</strong>
@@ -104,14 +103,11 @@ function SubmitComplaint() {
               <input
                 type="text"
                 className="form-control"
-                placeholder="Enter area / ward / panchayat"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
+                placeholder="Enter area / ward / panchayat"
+                required
               />
-              <small className="text-muted">
-                If location is not detected automatically from image metadata,
-                please enter it manually.
-              </small>
             </div>
 
             <button className="btn btn-primary">
@@ -121,11 +117,8 @@ function SubmitComplaint() {
         ) : (
           <div className="alert alert-success">
             <h5>Complaint Submitted Successfully</h5>
-            <p><strong>Status:</strong> Submitted</p>
-            <p><strong>Location:</strong> {location}</p>
-            <p>
-              You can now track the complaint from the <strong>Status</strong> tab.
-            </p>
+            <p>Status: Submitted</p>
+            <p>Track updates in Status tab.</p>
           </div>
         )}
       </div>

@@ -2,41 +2,45 @@ const Complaint = require("../models/Complaint");
 
 exports.createComplaint = async (req, res) => {
   try {
-    console.log("🔥 Complaint API HIT");
-    console.log(req.body);
+    const mediaType = req.file.mimetype.startsWith("video")
+      ? "video"
+      : "image";
 
     const complaint = new Complaint({
       userId: req.body.userId,
-      imageName: req.body.imageName,
-      location: req.body.location,
-      status: {
-        statusId: 1,
-        statusName: "Submitted"
-      },
-      category: "Pending",
-      priority: "Pending"
+      location: { area: req.body.area },
+      media: {
+        type: mediaType,
+        path: `/uploads/${req.file.filename}`
+      }
     });
 
     await complaint.save();
-
-    res.status(201).json({
-      message: "Complaint stored successfully",
-      complaint
-    });
+    res.status(201).json({ message: "Complaint submitted", complaint });
   } catch (error) {
-    console.error("❌ Save error:", error);
-    res.status(500).json({ message: "Failed to store complaint" });
+    res.status(500).json({ message: "Upload failed" });
   }
 };
 
 exports.getComplaintsByUser = async (req, res) => {
-  try {
-    const complaints = await Complaint.find({
-      userId: req.params.userId
-    }).sort({ createdAt: -1 });
+  const complaints = await Complaint.find({
+    userId: req.params.userId
+  }).sort({ createdAt: -1 });
+  res.json(complaints);
+};
 
-    res.json(complaints);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to fetch complaints" });
-  }
+exports.getAllComplaints = async (req, res) => {
+  const complaints = await Complaint.find()
+    .populate("userId", "name email")
+    .sort({ createdAt: -1 });
+  res.json(complaints);
+};
+
+exports.updateComplaintStatus = async (req, res) => {
+  await Complaint.findByIdAndUpdate(req.params.id, {
+    status: {
+      statusName: req.body.statusName
+    }
+  });
+  res.json({ message: "Status updated" });
 };
