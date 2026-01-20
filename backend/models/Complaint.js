@@ -24,13 +24,39 @@ const ComplaintSchema = new mongoose.Schema(
       area: { type: String, required: true }
     },
 
+    /* ================= AI PREDICTION ================= */
+    aiPrediction: {
+      issueType: {
+        type: String,
+        default: "unknown"
+      },
+      confidence: {
+        type: Number,
+        default: null
+      }
+    },
+
+    /* ================= AUTHORITY DECISION ================= */
+    authorityDecision: {
+      category: {
+        type: String,
+        default: "Pending"
+      },
+      priority: {
+        type: String,
+        default: "Pending"
+      },
+      verified: {
+        type: Boolean,
+        default: false
+      }
+    },
+
+    /* ================= STATUS ================= */
     status: {
       statusId: { type: Number, default: 1 },
       statusName: { type: String, default: "Submitted" }
-    },
-
-    category: { type: String, default: "Pending" },
-    priority: { type: String, default: "Pending" }
+    }
   },
   { timestamps: true }
 );

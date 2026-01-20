@@ -10,16 +10,12 @@ function Login() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  // 🔐 If already logged in, redirect immediately
+  // Redirect if already logged in
   useEffect(() => {
     const user = localStorage.getItem("user");
     if (user) {
       const parsedUser = JSON.parse(user);
-      if (parsedUser.role === "authority") {
-        navigate("/authority");
-      } else {
-        navigate("/submit");
-      }
+      navigate(parsedUser.role === "authority" ? "/authority" : "/submit");
     }
   }, [navigate]);
 
@@ -32,65 +28,88 @@ function Login() {
     setError("");
 
     try {
-      const res = await axios.post("http://localhost:5000/auth/login", form);
+      const res = await axios.post(
+        "http://localhost:5000/auth/login",
+        form
+      );
 
-      // ✅ store logged-in user
       localStorage.setItem("user", JSON.stringify(res.data.user));
-
-      // ✅ redirect based on role
-      if (res.data.user.role === "authority") {
-        navigate("/authority");
-      } else {
-        navigate("/submit");
-      }
-    } catch (err) {
+      navigate(
+        res.data.user.role === "authority" ? "/authority" : "/submit"
+      );
+    } catch {
       setError("Invalid email or password");
     }
   };
 
   return (
     <div
-      className="container d-flex justify-content-center align-items-center"
-      style={{ minHeight: "80vh" }}
+      className="min-vh-100 d-flex align-items-center justify-content-center"
+      style={{
+        background: "linear-gradient(135deg, #f8f9fa, #e9ecef)"
+      }}
     >
-      <div className="card shadow p-4" style={{ width: "400px" }}>
-        <h3 className="text-center mb-3">Login</h3>
+      <div
+        className="card shadow-lg border-0"
+        style={{ width: "420px", borderRadius: "12px" }}
+      >
+        <div className="card-body p-4">
+          <h3 className="text-center fw-bold mb-1">
+            Welcome Back
+          </h3>
+          <p className="text-center text-muted mb-4">
+            Login to submit and track civic issues
+          </p>
 
-        {error && <div className="alert alert-danger">{error}</div>}
+          {error && (
+            <div className="alert alert-danger text-center py-2">
+              {error}
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label className="form-label">Email</label>
-            <input
-              type="email"
-              name="email"
-              className="form-control"
-              value={form.email}
-              onChange={handleChange}
-              required
-            />
+          <form onSubmit={handleSubmit}>
+            <div className="mb-3">
+              <label className="form-label fw-semibold">
+                Email
+              </label>
+              <input
+                type="email"
+                name="email"
+                className="form-control"
+                value={form.email}
+                onChange={handleChange}
+                placeholder="you@example.com"
+                required
+              />
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label fw-semibold">
+                Password
+              </label>
+              <input
+                type="password"
+                name="password"
+                className="form-control"
+                value={form.password}
+                onChange={handleChange}
+                placeholder="••••••••"
+                required
+              />
+            </div>
+
+            <button className="btn btn-success w-100 fw-semibold py-2">
+              Login
+            </button>
+          </form>
+
+          <div className="text-center mt-3">
+            <span className="text-muted">New user?</span>{" "}
+            <Link to="/register" className="fw-semibold">
+              Register here
+            </Link>
           </div>
-
-          <div className="mb-3">
-            <label className="form-label">Password</label>
-            <input
-              type="password"
-              name="password"
-              className="form-control"
-              value={form.password}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          <button className="btn btn-success w-100">
-            Login
-          </button>
-        </form>
-
-        <p className="text-center mt-3">
-          New user? <Link to="/register">Register here</Link>
-        </p>
+        </div>
       </div>
     </div>
   );

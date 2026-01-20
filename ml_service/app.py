@@ -52,7 +52,7 @@ model = models.Sequential([
 # Load trained weights
 # -------------------------------
 model.load_weights(
-    "model/civicconnect_mobilenetv2_model.keras"
+    "model/civicconnect_mobilenetv2_model_v2.keras"
 )
 
 print("✅ Model architecture rebuilt and weights loaded successfully")
@@ -103,4 +103,4 @@ def predict():
 # Run server
 # -------------------------------
 if __name__ == "__main__":
-    app.run(port=5001, debug=True)
+    app.run(port=5001, debug=False)

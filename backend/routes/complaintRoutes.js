@@ -1,29 +1,36 @@
 const express = require("express");
 const router = express.Router();
-const multer = require("multer");
-const path = require("path");
+const upload = require("../middleware/upload");
 
 const {
   createComplaint,
   getComplaintsByUser,
   getAllComplaints,
-  updateComplaintStatus
+  updateComplaintStatus,
+  verifyComplaint
 } = require("../controllers/complaintController");
 
-// Multer config
-const storage = multer.diskStorage({
-  destination: "uploads/",
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  }
-});
+/* ===============================
+   Citizen Routes
+=============================== */
 
-const upload = multer({ storage });
-
-// Routes
+// Create complaint (with optional ML prediction)
 router.post("/", upload.single("media"), createComplaint);
+
+// Get complaints by logged-in user
 router.get("/user/:userId", getComplaintsByUser);
+
+/* ===============================
+   Authority Routes
+=============================== */
+
+// Get all complaints
 router.get("/", getAllComplaints);
+
+// Update complaint status (Submitted → In Progress → Resolved)
 router.put("/:id/status", updateComplaintStatus);
+
+// 🔥 NEW: Verify AI prediction + set category & priority
+router.put("/:id/verify", verifyComplaint);
 
 module.exports = router;
