@@ -8,6 +8,7 @@ const ComplaintSchema = new mongoose.Schema(
       required: true
     },
 
+    /* ================= MEDIA ================= */
     media: {
       type: {
         type: String,
@@ -20,8 +21,29 @@ const ComplaintSchema = new mongoose.Schema(
       }
     },
 
+    /* ================= LOCATION ================= */
     location: {
-      area: { type: String, required: true }
+      area: {
+        type: String,
+        default: "Not provided"
+      },
+      latitude: {
+        type: Number,
+        default: null
+      },
+      longitude: {
+        type: Number,
+        default: null
+      },
+      address: {
+        type: String,
+        default: null
+      },
+      source: {
+        type: String,
+        enum: ["EXIF", "MANUAL"],
+        default: "MANUAL"
+      }
     },
 
     /* ================= AI PREDICTION ================= */

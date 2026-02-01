@@ -97,6 +97,33 @@ function AuthorityDashboard() {
 
     return statusOk && categoryOk;
   });
+  /* ================= MAP HELPER (Swiggy-style fallback) ================= */
+const openInMaps = (complaint) => {
+  const lat = complaint?.location?.latitude;
+  const lon = complaint?.location?.longitude;
+  const area = complaint?.location?.area;
+
+  // Case 1: Exact GPS available → open pin
+  if (lat && lon) {
+    window.open(
+      `https://www.google.com/maps?q=${lat},${lon}`,
+      "_blank"
+    );
+    return;
+  }
+
+  // Case 2: GPS missing but area available → area search (Swiggy/Zomato style)
+  if (area && area !== "Not provided") {
+    window.open(
+      `https://www.google.com/maps/search/${encodeURIComponent(area)}`,
+      "_blank"
+    );
+    return;
+  }
+
+  // Case 3: Nothing available
+  alert("Location information not available for this complaint.");
+};
 
   /* ================= PAGINATION ================= */
 
@@ -207,8 +234,22 @@ function AuthorityDashboard() {
                     }
                   />
                 </td>
+                    
+                <td>
+  {c.location.area}
+  {c.location?.latitude && c.location?.longitude && (
+    <>
+      <br />
+      <button
+        className="btn btn-link btn-sm p-0"
+        onClick={() => openInMaps(c)}
+      >
+        
+      </button>
+    </>
+  )}
+</td>
 
-                <td>{c.location.area}</td>
 
                 <td>
                   <span className="badge bg-info text-dark">
@@ -250,6 +291,7 @@ function AuthorityDashboard() {
                     >
                       View
                     </button>
+                    <button className="btn btn-sm btn-outline-success"title="Open in Google Maps"onClick={() => openInMaps(c)}>Map📍</button>
 
                     <button
                       className="btn btn-sm btn-primary"
@@ -322,6 +364,15 @@ function AuthorityDashboard() {
               />
 
               <p><strong>Location:</strong> {viewComplaint.location.area}</p>
+              {viewComplaint.location?.latitude && viewComplaint.location?.longitude && (
+  <button
+    className="btn btn-outline-primary mb-3"
+    onClick={() => openInMaps(viewComplaint)}
+  >
+    View Location on Map
+  </button>
+)}
+
               <p><strong>Status:</strong> {viewComplaint.status.statusName}</p>
               <p><strong>AI:</strong> {viewComplaint.aiPrediction?.issueType}</p>
 

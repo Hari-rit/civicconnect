@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import * as exifr from "exifr";
 
 function SubmitComplaint() {
   const navigate = useNavigate();
@@ -8,14 +9,15 @@ function SubmitComplaint() {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [location, setLocation] = useState("");
+  const [locationMsg, setLocationMsg] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [user, setUser] = useState(null);
-
-  // ML result states
-  const [issueType, setIssueType] = useState(null);
-  const [confidence, setConfidence] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // Coordinates actually sent to backend
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user"));
@@ -26,26 +28,141 @@ function SubmitComplaint() {
     }
   }, [navigate]);
 
-  const handleFileChange = (e) => {
+  /* ======================================
+     FILE CHANGE → CORRECT LOCATION LOGIC
+     1) EXIF GPS
+     2) Browser GPS (fallback)
+  ====================================== */
+  const handleFileChange = async (e) => {
     const selected = e.target.files[0];
     if (!selected) return;
 
     setFile(selected);
+    setLocation("");
+    setLocationMsg("");
+    setLatitude(null);
+    setLongitude(null);
 
     if (selected.type.startsWith("image")) {
       setPreview(URL.createObjectURL(selected));
+
+      let exifUsed = false;
+
+      /* ---------- 1️⃣ TRY EXIF FIRST ---------- */
+      try {
+        const gps = await exifr.gps(selected);
+
+        if (gps?.latitude && gps?.longitude) {
+          exifUsed = true;
+          setLatitude(gps.latitude);
+          setLongitude(gps.longitude);
+
+          try {
+            const res = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?lat=${gps.latitude}&lon=${gps.longitude}&format=json`,
+              { headers: { "User-Agent": "CivicConnect/1.0" } }
+            );
+
+            const data = await res.json();
+            if (data?.address) {
+              const addr = data.address;
+
+              const area =
+                addr.suburb ||
+                addr.neighbourhood ||
+                addr.village ||
+                addr.town ||
+                addr.city_district;
+
+              const city =
+                addr.city ||
+                addr.county ||
+                addr.state_district;
+
+              const state = addr.state;
+
+              setLocation(
+                [area, city, state].filter(Boolean).join(", ")
+              );
+              setLocationMsg("📷 Location detected from photo metadata");
+            }
+          } catch {
+            setLocationMsg(
+              "📷 Photo location detected. Address lookup failed."
+            );
+          }
+        }
+      } catch {
+        // silently ignore EXIF failure
+      }
+
+      /* ---------- 2️⃣ FALLBACK: BROWSER GPS ---------- */
+      if (!exifUsed && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            setLatitude(pos.coords.latitude);
+            setLongitude(pos.coords.longitude);
+
+            try {
+              const res = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`,
+                { headers: { "User-Agent": "CivicConnect/1.0" } }
+              );
+
+              const data = await res.json();
+              if (data?.address) {
+                const addr = data.address;
+
+                const area =
+                  addr.suburb ||
+                  addr.neighbourhood ||
+                  addr.village ||
+                  addr.town ||
+                  addr.city_district;
+
+                const city =
+                  addr.city ||
+                  addr.county ||
+                  addr.state_district;
+
+                const state = addr.state;
+
+                setLocation(
+                  [area, city, state].filter(Boolean).join(", ")
+                );
+              }
+            } catch {}
+
+            setLocationMsg(
+              "📍 Using your current device location. Edit if different."
+            );
+          },
+          () => {
+            setLocationMsg(
+              "⚠️ Location not detected. Please enter manually."
+            );
+          },
+          { enableHighAccuracy: true, timeout: 10000 }
+        );
+      }
     } else {
       setPreview(null);
+      setLocationMsg(
+        "⚠️ Location cannot be extracted from videos. Please enter manually."
+      );
     }
   };
 
+  /* ======================================
+     SUBMIT COMPLAINT
+  ====================================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    if (!file || !location.trim()) {
-      setError("All fields are required");
+    if (!file) {
+      setError("Please upload an image or video");
       setLoading(false);
       return;
     }
@@ -53,19 +170,20 @@ function SubmitComplaint() {
     try {
       const formData = new FormData();
       formData.append("media", file);
-      formData.append("area", location);
+      formData.append("area", location || "");
+      formData.append("latitude", latitude);
+      formData.append("longitude", longitude);
       formData.append("userId", user.id);
 
-      const response = await axios.post(
+      await axios.post(
         "http://localhost:5000/complaints",
         formData,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
 
-      setIssueType(response.data.issueType);
-      setConfidence(response.data.confidence);
       setSubmitted(true);
-    } catch {
+    } catch (err) {
+      console.error(err);
       setError("Failed to submit complaint");
     } finally {
       setLoading(false);
@@ -80,23 +198,14 @@ function SubmitComplaint() {
         <div className="col-lg-10">
           <div className="card shadow-lg border-0">
             <div className="card-body p-4">
-              <h3 className="fw-bold mb-1">
-                Submit Civic Complaint
-              </h3>
-              <p className="text-muted mb-4">
-                Upload an image or video and let AI classify the issue
-              </p>
+              <h3 className="fw-bold mb-1">Submit Civic Complaint</h3>
+              <p className="text-muted mb-4">Upload an image or video</p>
 
-              {error && (
-                <div className="alert alert-danger">
-                  {error}
-                </div>
-              )}
+              {error && <div className="alert alert-danger">{error}</div>}
 
               {!submitted ? (
                 <form onSubmit={handleSubmit}>
                   <div className="row">
-                    {/* Left: Form */}
                     <div className="col-md-6">
                       <div className="mb-3">
                         <label className="form-label fw-semibold">
@@ -111,7 +220,7 @@ function SubmitComplaint() {
                         />
                       </div>
 
-                      <div className="mb-3">
+                      <div className="mb-2">
                         <label className="form-label fw-semibold">
                           Location
                         </label>
@@ -121,25 +230,24 @@ function SubmitComplaint() {
                           value={location}
                           onChange={(e) => setLocation(e.target.value)}
                           placeholder="Area / ward / panchayat"
-                          required
                         />
+                        {locationMsg && (
+                          <small className="text-muted">{locationMsg}</small>
+                        )}
                       </div>
 
                       <button
-                        className="btn btn-primary px-4"
+                        className="btn btn-primary px-4 mt-3"
                         disabled={loading}
                       >
-                        {loading ? "Analyzing..." : "Submit Complaint"}
+                        {loading ? "Submitting..." : "Submit Complaint"}
                       </button>
                     </div>
 
-                    {/* Right: Preview */}
                     <div className="col-md-6">
                       {preview ? (
                         <div className="border rounded p-3 text-center bg-white">
-                          <p className="fw-semibold mb-2">
-                            Image Preview
-                          </p>
+                          <p className="fw-semibold mb-2">Image Preview</p>
                           <img
                             src={preview}
                             alt="preview"
@@ -160,34 +268,7 @@ function SubmitComplaint() {
                   <h5 className="fw-bold mb-2">
                     Complaint Submitted Successfully
                   </h5>
-
-                  <p className="mb-2">
-                    <strong>Status:</strong> Submitted
-                  </p>
-
-                  {issueType && (
-                    <div className="mt-3 p-3 border rounded bg-white">
-                      <h6 className="fw-bold mb-2">
-                        AI Detected Issue
-                      </h6>
-
-                      <p className="mb-1">
-                        <strong>Issue Type:</strong>{" "}
-                        <span className="badge bg-info text-dark">
-                          {issueType.replace(/_/g, " ")}
-                        </span>
-                      </p>
-
-                      {confidence !== null && (
-                        <p className="mb-0">
-                          <strong>Confidence:</strong>{" "}
-                          {(confidence * 100).toFixed(2)}%
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  <p className="mt-3 mb-0">
+                  <p className="mb-0">
                     Track updates in the <strong>Status</strong> tab.
                   </p>
                 </div>

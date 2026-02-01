@@ -3,11 +3,14 @@ const axios = require("axios");
 const FormData = require("form-data");
 const fs = require("fs");
 const path = require("path");
+const exifParser = require("exif-parser");
 
 /* =====================================================
    CREATE COMPLAINT (Citizen)
-   - ML prediction is OPTIONAL
-   - Complaint must succeed even if ML fails
+   - ML prediction OPTIONAL
+   - EXIF GPS OPTIONAL
+   - Browser GPS OPTIONAL
+   - Complaint MUST succeed always
 ===================================================== */
 exports.createComplaint = async (req, res) => {
   try {
@@ -19,11 +22,29 @@ exports.createComplaint = async (req, res) => {
       ? "video"
       : "image";
 
-    // Default AI values (safe)
+    /* ================= DEFAULT AI ================= */
     let issueType = "Pending Review";
     let confidence = null;
 
-    /* ---------- ML CALL (IMAGE ONLY) ---------- */
+    /* ================= LOCATION DEFAULT ================= */
+    let locationData = {
+      area: req.body.area || "Not provided",
+      latitude: null,
+      longitude: null,
+      address: null,
+      source: "MANUAL"
+    };
+
+    /* =====================================================
+       1️⃣ DEVICE GPS (TOP PRIORITY – LIKE SWIGGY)
+    ===================================================== */
+    if (req.body.latitude && req.body.longitude) {
+      locationData.latitude = Number(req.body.latitude);
+      locationData.longitude = Number(req.body.longitude);
+      locationData.source = "DEVICE";
+    }
+
+    /* ================= ML CALL (IMAGE ONLY) ================= */
     if (mediaType === "image") {
       try {
         const form = new FormData();
@@ -45,26 +66,47 @@ exports.createComplaint = async (req, res) => {
 
         issueType = mlResponse.data.issueType;
         confidence = mlResponse.data.confidence;
-
       } catch (mlError) {
         console.error("ML service failed:", mlError.message);
       }
+
+      /* =====================================================
+         2️⃣ EXIF GPS (ONLY IF DEVICE GPS NOT PRESENT)
+      ===================================================== */
+      if (!locationData.latitude) {
+        try {
+          const imageBuffer = fs.readFileSync(
+            path.join(__dirname, "..", req.file.path)
+          );
+
+          const result = exifParser.create(imageBuffer).parse();
+
+          if (
+            result.tags?.GPSLatitude &&
+            result.tags?.GPSLongitude
+          ) {
+            locationData.latitude = result.tags.GPSLatitude;
+            locationData.longitude = result.tags.GPSLongitude;
+            locationData.source = "EXIF";
+          }
+        } catch {
+          // silently ignore EXIF failure
+        }
+      }
     }
 
-    /* ---------- SAVE COMPLAINT ---------- */
+    /* ================= SAVE COMPLAINT ================= */
     const complaint = new Complaint({
       userId: req.body.userId,
-      location: { area: req.body.area },
+      location: locationData,
       media: {
         type: mediaType,
         path: `/uploads/${req.file.filename}`
       },
-
       aiPrediction: {
         issueType,
         confidence
       },
-
       authorityDecision: {
         category: "Pending",
         priority: "Pending",
@@ -76,7 +118,6 @@ exports.createComplaint = async (req, res) => {
 
     return res.status(201).json({
       message: "Complaint submitted successfully",
-      aiPrediction: complaint.aiPrediction,
       complaint
     });
 

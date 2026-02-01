@@ -11,7 +11,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-/* 🔥 THIS MUST BE BEFORE ROUTES 🔥 */
+
 app.use(
   "/uploads",
   express.static(path.join(__dirname, "uploads"))

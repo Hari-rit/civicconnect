@@ -14,7 +14,7 @@ const {
    Citizen Routes
 =============================== */
 
-// Create complaint (with optional ML prediction)
+// Create complaint 
 router.post("/", upload.single("media"), createComplaint);
 
 // Get complaints by logged-in user
@@ -27,10 +27,10 @@ router.get("/user/:userId", getComplaintsByUser);
 // Get all complaints
 router.get("/", getAllComplaints);
 
-// Update complaint status (Submitted → In Progress → Resolved)
+// Update complaint status (Submitted  In Progress  Resolved)
 router.put("/:id/status", updateComplaintStatus);
 
-// 🔥 NEW: Verify AI prediction + set category & priority
+//   verify ai prediction set category priority
 router.put("/:id/verify", verifyComplaint);
 
 module.exports = router;
