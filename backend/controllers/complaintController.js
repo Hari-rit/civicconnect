@@ -7,10 +7,6 @@ const exifParser = require("exif-parser");
 
 /* =====================================================
    CREATE COMPLAINT (Citizen)
-   - ML prediction OPTIONAL
-   - EXIF GPS OPTIONAL
-   - Browser GPS OPTIONAL
-   - Complaint MUST succeed always
 ===================================================== */
 exports.createComplaint = async (req, res) => {
   try {
@@ -22,80 +18,60 @@ exports.createComplaint = async (req, res) => {
       ? "video"
       : "image";
 
-    /* ================= DEFAULT AI ================= */
     let issueType = "Pending Review";
     let confidence = null;
 
-    /* ================= LOCATION DEFAULT ================= */
     let locationData = {
       area: req.body.area || "Not provided",
+      landmark: req.body.landmark || null,
       latitude: null,
       longitude: null,
       address: null,
       source: "MANUAL"
     };
 
-    /* =====================================================
-       1️⃣ DEVICE GPS (TOP PRIORITY – LIKE SWIGGY)
-    ===================================================== */
+    /* DEVICE GPS (TOP PRIORITY) */
     if (req.body.latitude && req.body.longitude) {
       locationData.latitude = Number(req.body.latitude);
       locationData.longitude = Number(req.body.longitude);
       locationData.source = "DEVICE";
     }
 
-    /* ================= ML CALL (IMAGE ONLY) ================= */
+    /* ML + EXIF */
     if (mediaType === "image") {
       try {
         const form = new FormData();
         form.append(
           "image",
-          fs.createReadStream(
-            path.join(__dirname, "..", req.file.path)
-          )
+          fs.createReadStream(path.join(__dirname, "..", req.file.path))
         );
 
         const mlResponse = await axios.post(
           "http://127.0.0.1:5001/predict",
           form,
-          {
-            headers: form.getHeaders(),
-            timeout: 10000
-          }
+          { headers: form.getHeaders(), timeout: 10000 }
         );
 
         issueType = mlResponse.data.issueType;
         confidence = mlResponse.data.confidence;
-      } catch (mlError) {
-        console.error("ML service failed:", mlError.message);
-      }
+      } catch {}
 
-      /* =====================================================
-         2️⃣ EXIF GPS (ONLY IF DEVICE GPS NOT PRESENT)
-      ===================================================== */
       if (!locationData.latitude) {
         try {
           const imageBuffer = fs.readFileSync(
             path.join(__dirname, "..", req.file.path)
           );
-
           const result = exifParser.create(imageBuffer).parse();
 
-          if (
-            result.tags?.GPSLatitude &&
-            result.tags?.GPSLongitude
-          ) {
+          if (result.tags?.GPSLatitude && result.tags?.GPSLongitude) {
             locationData.latitude = result.tags.GPSLatitude;
             locationData.longitude = result.tags.GPSLongitude;
             locationData.source = "EXIF";
           }
-        } catch {
-          // silently ignore EXIF failure
-        }
+        } catch {}
       }
     }
 
-    /* ================= SAVE COMPLAINT ================= */
     const complaint = new Complaint({
       userId: req.body.userId,
       location: locationData,
@@ -103,10 +79,7 @@ exports.createComplaint = async (req, res) => {
         type: mediaType,
         path: `/uploads/${req.file.filename}`
       },
-      aiPrediction: {
-        issueType,
-        confidence
-      },
+      aiPrediction: { issueType, confidence },
       authorityDecision: {
         category: "Pending",
         priority: "Pending",
@@ -115,42 +88,32 @@ exports.createComplaint = async (req, res) => {
     });
 
     await complaint.save();
+    res.status(201).json({ message: "Complaint submitted", complaint });
 
-    return res.status(201).json({
-      message: "Complaint submitted successfully",
-      complaint
-    });
-
-  } catch (error) {
-    console.error("Complaint creation error:", error);
-    return res.status(500).json({ message: "Upload failed" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Upload failed" });
   }
 };
 
 /* =====================================================
-   GET COMPLAINTS BY USER (Citizen)
+   GET COMPLAINTS
 ===================================================== */
 exports.getComplaintsByUser = async (req, res) => {
   try {
-    const complaints = await Complaint.find({
-      userId: req.params.userId
-    }).sort({ createdAt: -1 });
-
+    const complaints = await Complaint.find({ userId: req.params.userId })
+      .sort({ createdAt: -1 });
     res.json(complaints);
   } catch {
     res.status(500).json({ message: "Failed to fetch complaints" });
   }
 };
 
-/* =====================================================
-   GET ALL COMPLAINTS (Authority)
-===================================================== */
 exports.getAllComplaints = async (req, res) => {
   try {
     const complaints = await Complaint.find()
       .populate("userId", "name email")
       .sort({ createdAt: -1 });
-
     res.json(complaints);
   } catch {
     res.status(500).json({ message: "Failed to fetch complaints" });
@@ -158,39 +121,50 @@ exports.getAllComplaints = async (req, res) => {
 };
 
 /* =====================================================
-   UPDATE STATUS (Authority)
+   UPDATE STATUS ONLY (after verification)
 ===================================================== */
 exports.updateComplaintStatus = async (req, res) => {
   try {
     await Complaint.findByIdAndUpdate(req.params.id, {
-      status: {
-        statusName: req.body.statusName
+      $set: {
+        "status.statusName": req.body.statusName
       }
     });
 
-    res.json({ message: "Status updated" });
+    res.json({ message: "Status updated successfully" });
   } catch {
     res.status(500).json({ message: "Status update failed" });
   }
 };
-
 /* =====================================================
-   AUTHORITY: VERIFY & CATEGORIZE AI RESULT
+   AUTHORITY: VERIFY + CATEGORY + PRIORITY + STATUS
 ===================================================== */
 exports.verifyComplaint = async (req, res) => {
   try {
-    const { category, priority } = req.body;
+    const { category, priority, statusName } = req.body;
 
-    await Complaint.findByIdAndUpdate(req.params.id, {
-      authorityDecision: {
-        category,
-        priority,
-        verified: true
-      }
+    const updated = await Complaint.findByIdAndUpdate(
+      req.params.id,
+      {
+        authorityDecision: {
+          category,
+          priority,
+          verified: true
+        },
+        status: {
+          statusName   // 🔥 IMPORTANT: no default, use dropdown value
+        }
+      },
+      { new: true } // 🔥 ensures updated doc
+    );
+
+    res.json({
+      message: "Complaint verified successfully",
+      complaint: updated
     });
-
-    res.json({ message: "Complaint verified successfully" });
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Verification failed" });
   }
 };
+

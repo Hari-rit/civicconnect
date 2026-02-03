@@ -33,18 +33,22 @@ function AuthorityDashboard() {
 
   /* ================= API ACTIONS ================= */
 
-  const handleVerify = async () => {
-    await axios.put(
-      `http://localhost:5000/complaints/${reviewComplaint._id}/verify`,
-      {
-        category: reviewComplaint.authorityDecision.category,
-        priority: reviewComplaint.authorityDecision.priority
-      }
-    );
+const handleVerify = async () => {
+  await axios.put(
+    `http://localhost:5000/complaints/${reviewComplaint._id}/verify`,
+    {
+      category: reviewComplaint.authorityDecision.category,
+      priority: reviewComplaint.authorityDecision.priority,
+      statusName: reviewComplaint.status.statusName 
+    }
+  );
 
-    fetchComplaints();
-    setReviewComplaint(null);
-  };
+  fetchComplaints();
+  setReviewComplaint(null);
+};
+
+
+
 
   const handleStatusUpdate = async () => {
     await axios.put(
@@ -235,20 +239,19 @@ const openInMaps = (complaint) => {
                   />
                 </td>
                     
-                <td>
-  {c.location.area}
-  {c.location?.latitude && c.location?.longitude && (
+ <td>
+  <strong>{c.location.area}</strong>
+
+  {c.location?.landmark && (
     <>
       <br />
-      <button
-        className="btn btn-link btn-sm p-0"
-        onClick={() => openInMaps(c)}
-      >
-        
-      </button>
+      <small className="text-muted">
+        Landmark: {c.location.landmark}
+      </small>
     </>
   )}
 </td>
+
 
 
                 <td>
@@ -296,17 +299,17 @@ const openInMaps = (complaint) => {
                     <button
                       className="btn btn-sm btn-primary"
                       onClick={() =>
-                        setReviewComplaint({
-                          ...c,
-                          authorityDecision: {
-                            category:
-                              c.authorityDecision?.category || "Pothole",
-                            priority:
-                              c.authorityDecision?.priority || "Medium",
-                            verified:
-                              c.authorityDecision?.verified || false
-                          }
-                        })
+                       setReviewComplaint({
+  ...c,
+  authorityDecision: {
+    category: c.authorityDecision?.category || "Pothole",
+    priority: c.authorityDecision?.priority || "Medium",
+    verified: c.authorityDecision?.verified || false
+  },
+  status: {
+    statusName: c.status?.statusName || "Submitted"
+  }
+})
                       }
                     >
                       Review
@@ -341,51 +344,81 @@ const openInMaps = (complaint) => {
           Next
         </button>
       </div>
-
-      {/* ================= VIEW MODAL ================= */}
-      {viewComplaint && (
-        <div
-          className="position-fixed top-0 start-0 w-100 h-100"
-          style={{ background: "rgba(0,0,0,0.6)", zIndex: 1050 }}
-          onClick={() => setViewComplaint(null)}
-        >
-          <div className="d-flex justify-content-center align-items-center h-100">
-            <div
-              className="card p-4"
-              style={{ width: "720px" }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h5 className="mb-3">Complaint Details</h5>
-
-              <img
-                src={`http://localhost:5000${viewComplaint.media.path}`}
-                className="img-fluid rounded mb-3"
-                alt="complaint"
-              />
-
-              <p><strong>Location:</strong> {viewComplaint.location.area}</p>
-              {viewComplaint.location?.latitude && viewComplaint.location?.longitude && (
-  <button
-    className="btn btn-outline-primary mb-3"
-    onClick={() => openInMaps(viewComplaint)}
+{/* ================= VIEW MODAL ================= */}
+{viewComplaint && (
+  <div
+    className="position-fixed top-0 start-0 w-100 h-100"
+    style={{
+      background: "rgba(0,0,0,0.6)",
+      zIndex: 1050,
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center"
+    }}
   >
-    View Location on Map
-  </button>
+    <div
+      className="card p-3"
+      style={{
+        width: "720px",
+        maxWidth: "95%",
+        height: "90vh",          // 🔒 FIXED HEIGHT
+        overflowY: "auto"        // 🔥 ENABLE SCROLL
+      }}
+    >
+      {/* Header */}
+      <div className="d-flex justify-content-between align-items-center mb-2">
+        <h5 className="mb-0">Complaint Details</h5>
+        <button
+          className="btn-close"
+          onClick={() => setViewComplaint(null)}
+        />
+      </div>
+
+      {/* Image (LOCKED SIZE) */}
+      <img
+        src={`http://localhost:5000${viewComplaint.media.path}`}
+        alt="complaint"
+        style={{
+          width: "100%",
+          maxHeight: "40vh",      // 🔒 IMAGE CONSTRAINT
+          objectFit: "contain",
+          marginBottom: "12px"
+        }}
+      />
+
+      {/* Content */}
+      <p>
+        <strong>Location:</strong>{" "}
+        {viewComplaint.location.area}
+      </p>
+
+      <button
+        className="btn btn-outline-primary w-100 mb-3"
+        onClick={() => openInMaps(viewComplaint)}
+      >
+        View Location on Map
+      </button>
+
+      <p>
+        <strong>Status:</strong>{" "}
+        {viewComplaint.status.statusName}
+      </p>
+
+      <p>
+        <strong>AI:</strong>{" "}
+        {viewComplaint.aiPrediction?.issueType}
+      </p>
+
+      {/* Footer */}
+      <button
+        className="btn btn-secondary w-100 mt-3"
+        onClick={() => setViewComplaint(null)}
+      >
+        Close
+      </button>
+    </div>
+  </div>
 )}
-
-              <p><strong>Status:</strong> {viewComplaint.status.statusName}</p>
-              <p><strong>AI:</strong> {viewComplaint.aiPrediction?.issueType}</p>
-
-              <button
-                className="btn btn-secondary w-100"
-                onClick={() => setViewComplaint(null)}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ================= REVIEW MODAL ================= */}
       {reviewComplaint && (
@@ -394,7 +427,14 @@ const openInMaps = (complaint) => {
           style={{ background: "rgba(0,0,0,0.6)", zIndex: 1050 }}
         >
           <div className="d-flex justify-content-center align-items-center h-100">
-            <div className="card p-4" style={{ width: "720px" }}>
+            <div
+  className="card d-flex flex-column"
+  style={{
+    width: "720px",
+    maxHeight: "90vh"
+  }}
+>
+
               <div className="d-flex justify-content-between mb-3">
                 <h5>Review Complaint</h5>
                 <button
@@ -404,10 +444,15 @@ const openInMaps = (complaint) => {
               </div>
 
               <img
-                src={`http://localhost:5000${reviewComplaint.media.path}`}
-                className="img-fluid rounded mb-3"
-                alt="complaint"
-              />
+  src={`http://localhost:5000${reviewComplaint.media.path}`}
+  alt="complaint"
+  className="img-fluid rounded mb-3"
+  style={{
+    maxHeight: "45vh",
+    objectFit: "contain"
+  }}
+/>
+
 
               {!reviewComplaint.authorityDecision.verified && (
                 <div className="row g-3">
@@ -504,18 +549,49 @@ const openInMaps = (complaint) => {
         </div>
       )}
 
-      {/* ================= ZOOM ================= */}
-      {zoomMedia && (
-        <div
-          className="position-fixed top-0 start-0 w-100 h-100"
-          style={{ background: "rgba(0,0,0,0.9)", zIndex: 2000 }}
+{/* ================= ZOOM (FIXED SIZE) ================= */}
+{zoomMedia && (
+  <div
+    className="position-fixed top-0 start-0 w-100 h-100"
+    style={{
+      background: "rgba(0,0,0,0.6)",
+      zIndex: 2000,
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center"
+    }}
+  >
+    <div
+      className="card p-3"
+      style={{
+        width: "600px",
+        maxWidth: "95%",
+        maxHeight: "80vh",
+        overflow: "auto"
+      }}
+    >
+      {/* Header */}
+      <div className="d-flex justify-content-between align-items-center mb-2">
+        <h6 className="mb-0">Media Preview</h6>
+        <button
+          className="btn-close"
           onClick={() => setZoomMedia(null)}
-        >
-          <div className="d-flex justify-content-center align-items-center h-100">
-            <img src={zoomMedia} alt="zoom" className="img-fluid rounded" />
-          </div>
-        </div>
-      )}
+        />
+      </div>
+
+      {/* Image */}
+      <img
+        src={zoomMedia}
+        alt="zoom"
+        style={{
+          width: "100%",
+          maxHeight: "65vh",
+          objectFit: "contain"
+        }}
+      />
+    </div>
+  </div>
+)}
     </div>
   );
 }

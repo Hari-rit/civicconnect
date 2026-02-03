@@ -8,14 +8,17 @@ function SubmitComplaint() {
 
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
+
   const [location, setLocation] = useState("");
+  const [landmark, setLandmark] = useState(""); // ✅ NEW
   const [locationMsg, setLocationMsg] = useState("");
+
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Coordinates actually sent to backend
+  // Coordinates sent to backend
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
 
@@ -29,8 +32,8 @@ function SubmitComplaint() {
   }, [navigate]);
 
   /* ======================================
-     FILE CHANGE → CORRECT LOCATION LOGIC
-     1) EXIF GPS
+     FILE CHANGE → LOCATION PRIORITY
+     1) EXIF GPS (photo location)
      2) Browser GPS (fallback)
   ====================================== */
   const handleFileChange = async (e) => {
@@ -39,6 +42,7 @@ function SubmitComplaint() {
 
     setFile(selected);
     setLocation("");
+    setLandmark("");
     setLocationMsg("");
     setLatitude(null);
     setLongitude(null);
@@ -48,7 +52,7 @@ function SubmitComplaint() {
 
       let exifUsed = false;
 
-      /* ---------- 1️⃣ TRY EXIF FIRST ---------- */
+      /* ---------- 1️⃣ EXIF GPS ---------- */
       try {
         const gps = await exifr.gps(selected);
 
@@ -87,16 +91,14 @@ function SubmitComplaint() {
               setLocationMsg("📷 Location detected from photo metadata");
             }
           } catch {
-            setLocationMsg(
-              "📷 Photo location detected. Address lookup failed."
-            );
+            setLocationMsg("📷 Photo location detected (address unavailable)");
           }
         }
       } catch {
-        // silently ignore EXIF failure
+        // ignore EXIF errors
       }
 
-      /* ---------- 2️⃣ FALLBACK: BROWSER GPS ---------- */
+      /* ---------- 2️⃣ DEVICE GPS ---------- */
       if (!exifUsed && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           async (pos) => {
@@ -171,6 +173,7 @@ function SubmitComplaint() {
       const formData = new FormData();
       formData.append("media", file);
       formData.append("area", location || "");
+      formData.append("landmark", landmark || ""); // ✅ NEW
       formData.append("latitude", latitude);
       formData.append("longitude", longitude);
       formData.append("userId", user.id);
@@ -234,6 +237,20 @@ function SubmitComplaint() {
                         {locationMsg && (
                           <small className="text-muted">{locationMsg}</small>
                         )}
+                      </div>
+
+                      {/* ✅ LANDMARK FIELD */}
+                      <div className="mb-2">
+                        <label className="form-label fw-semibold">
+                          Landmark (optional)
+                        </label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={landmark}
+                          onChange={(e) => setLandmark(e.target.value)}
+                          placeholder="Near temple / school / junction"
+                        />
                       </div>
 
                       <button

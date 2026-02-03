@@ -27,21 +27,31 @@ const ComplaintSchema = new mongoose.Schema(
         type: String,
         default: "Not provided"
       },
+
+      // ✅ NEW: LANDMARK (human-readable clarity)
+      landmark: {
+        type: String,
+        default: null
+      },
+
       latitude: {
         type: Number,
         default: null
       },
+
       longitude: {
         type: Number,
         default: null
       },
+
       address: {
         type: String,
         default: null
       },
+
       source: {
         type: String,
-        enum: ["EXIF", "MANUAL"],
+        enum: ["EXIF", "DEVICE", "MANUAL"],
         default: "MANUAL"
       }
     },
