@@ -158,40 +158,50 @@ function SubmitComplaint() {
   /* ======================================
      SUBMIT COMPLAINT
   ====================================== */
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError("");
+  setLoading(true);
 
-    if (!file) {
-      setError("Please upload an image or video");
-      setLoading(false);
-      return;
-    }
+  if (!file) {
+    setError("Please upload an image or video");
+    setLoading(false);
+    return;
+  }
 
-    try {
-      const formData = new FormData();
-      formData.append("media", file);
-      formData.append("area", location || "");
-      formData.append("landmark", landmark || ""); // ✅ NEW
+  if (!location.trim()) {
+    setError("Please enter a location");
+    setLoading(false);
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append("media", file);
+    formData.append("area", location.trim());
+    formData.append("landmark", landmark?.trim() || "");
+    formData.append("userId", user.id);
+
+    // ✅ ONLY append GPS if it exists
+    if (latitude !== null && longitude !== null) {
       formData.append("latitude", latitude);
       formData.append("longitude", longitude);
-      formData.append("userId", user.id);
-
-      await axios.post(
-        "http://localhost:5000/complaints",
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-
-      setSubmitted(true);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to submit complaint");
-    } finally {
-      setLoading(false);
     }
-  };
+
+    await axios.post(
+      "http://localhost:5000/complaints",
+      formData
+    );
+
+    setSubmitted(true);
+  } catch (err) {
+    console.error("Submit error:", err);
+    setError("Failed to submit complaint");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   if (!user) return null;
 

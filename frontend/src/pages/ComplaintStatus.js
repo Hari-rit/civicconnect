@@ -23,7 +23,7 @@ function ComplaintStatus() {
           `http://localhost:5000/complaints/user/${userId}`
         );
         setComplaints(res.data);
-      } catch (err) {
+      } catch {
         setError("Failed to load complaint status");
       } finally {
         setLoading(false);
@@ -42,24 +42,22 @@ function ComplaintStatus() {
 
   if (loading) {
     return (
-      <div className="container mt-4">
-        <div className="alert alert-info">Loading complaints...</div>
+      <div className="container mt-4 alert alert-info">
+        Loading complaints...
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="container mt-4">
-        <div className="alert alert-danger">{error}</div>
-      </div>
+      <div className="container mt-4 alert alert-danger">{error}</div>
     );
   }
 
   if (complaints.length === 0) {
     return (
-      <div className="container mt-4">
-        <div className="alert alert-warning">No complaints found.</div>
+      <div className="container mt-4 alert alert-warning">
+        No complaints found.
       </div>
     );
   }
@@ -80,9 +78,12 @@ function ComplaintStatus() {
               {c.media?.type === "image" && (
                 <img
                   src={`http://localhost:5000${c.media.path}`}
-                  className="card-img-top"
                   alt="complaint"
-                  style={{ height: "180px", objectFit: "cover" }}
+                  style={{
+                    height: "180px",
+                    width: "100%",
+                    objectFit: "cover"
+                  }}
                 />
               )}
 
@@ -110,8 +111,7 @@ function ComplaintStatus() {
                   Submitted on{" "}
                   {new Date(c.createdAt).toLocaleDateString()}
                 </div>
-
-                {c.updatedAt && c.updatedAt !== c.createdAt && (
+                {c.updatedAt !== c.createdAt && (
                   <div>
                     Last updated{" "}
                     {new Date(c.updatedAt).toLocaleDateString()}
@@ -127,24 +127,44 @@ function ComplaintStatus() {
       {selectedComplaint && (
         <div
           className="position-fixed top-0 start-0 w-100 h-100"
-          style={{ background: "rgba(0,0,0,0.6)", zIndex: 2000 }}
+          style={{
+            background: "rgba(0,0,0,0.6)",
+            zIndex: 2000,
+            overflowY: "auto"   // ✅ SCROLL ENABLED
+          }}
           onClick={() => setSelectedComplaint(null)}
         >
-          <div className="d-flex justify-content-center align-items-center h-100">
+          <div className="d-flex justify-content-center align-items-start py-5">
             <div
               className="card shadow-lg border-0"
-              style={{ maxWidth: "700px", width: "95%" }}
+              style={{
+                width: "100%",
+                maxWidth: "720px",
+                maxHeight: "90vh",
+                overflowY: "auto"   // ✅ SCROLL INSIDE CARD
+              }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="card-body p-4">
-                <h5 className="fw-bold mb-3">Complaint Details</h5>
+                <div className="d-flex justify-content-between mb-3">
+                  <h5 className="fw-bold">Complaint Details</h5>
+                  <button
+                    className="btn-close"
+                    onClick={() => setSelectedComplaint(null)}
+                  />
+                </div>
 
                 {selectedComplaint.media?.type === "image" && (
                   <img
                     src={`http://localhost:5000${selectedComplaint.media.path}`}
                     alt="complaint"
-                    className="img-fluid rounded mb-3"
-                    style={{ cursor: "zoom-in" }}
+                    style={{
+                      width: "100%",
+                      maxHeight: "300px",
+                      objectFit: "contain",
+                      borderRadius: "8px",
+                      cursor: "zoom-in"
+                    }}
                     onClick={() =>
                       setZoomMedia(
                         `http://localhost:5000${selectedComplaint.media.path}`
@@ -157,9 +177,11 @@ function ComplaintStatus() {
                   <video
                     src={`http://localhost:5000${selectedComplaint.media.path}`}
                     controls
-                    className="w-100 mb-3"
+                    style={{ width: "100%", maxHeight: "300px" }}
                   />
                 )}
+
+                <hr />
 
                 <p>
                   <strong>Location:</strong>{" "}
@@ -184,25 +206,15 @@ function ComplaintStatus() {
                   ).toLocaleString()}
                 </p>
 
-                {selectedComplaint.updatedAt &&
-                  selectedComplaint.updatedAt !==
-                    selectedComplaint.createdAt && (
-                    <p className="text-muted">
-                      <strong>Last updated:</strong>{" "}
-                      {new Date(
-                        selectedComplaint.updatedAt
-                      ).toLocaleString()}
-                    </p>
-                  )}
-
-                <div className="text-end">
-                  <button
-                    className="btn btn-outline-secondary btn-sm"
-                    onClick={() => setSelectedComplaint(null)}
-                  >
-                    Close
-                  </button>
-                </div>
+                {selectedComplaint.updatedAt !==
+                  selectedComplaint.createdAt && (
+                  <p className="text-muted">
+                    <strong>Last updated:</strong>{" "}
+                    {new Date(
+                      selectedComplaint.updatedAt
+                    ).toLocaleString()}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -213,15 +225,21 @@ function ComplaintStatus() {
       {zoomMedia && (
         <div
           className="position-fixed top-0 start-0 w-100 h-100"
-          style={{ background: "rgba(0,0,0,0.85)", zIndex: 3000 }}
+          style={{
+            background: "rgba(0,0,0,0.85)",
+            zIndex: 3000
+          }}
           onClick={() => setZoomMedia(null)}
         >
           <div className="d-flex justify-content-center align-items-center h-100">
             <img
               src={zoomMedia}
               alt="zoom"
-              className="img-fluid rounded"
-              style={{ maxWidth: "90%", maxHeight: "90%" }}
+              style={{
+                maxWidth: "90%",
+                maxHeight: "90%",
+                objectFit: "contain"
+              }}
             />
           </div>
         </div>
