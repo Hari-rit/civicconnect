@@ -124,6 +124,9 @@ function Register() {
                 <option value="authority">
                   Authority
                 </option>
+                <option value="worker">
+                  Worker
+                </option>
               </select>
             </div>
 

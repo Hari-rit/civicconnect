@@ -60,6 +60,21 @@ const handleVerify = async () => {
     setReviewComplaint(null);
   };
 
+  /* ================= WORKER PROOF VERIFY & RESOLVE ================= */
+
+const handleVerifyAndResolve = async (complaintId) => {
+  try {
+    await axios.put(
+      `http://localhost:5000/authority/complaints/${complaintId}/resolve`
+    );
+    alert("Complaint resolved successfully.");
+    fetchComplaints();
+    setReviewComplaint(null);
+  } catch (error) {
+    alert("Cannot resolve complaint. Worker proof may be missing.");
+  }
+};
+
   /* ================= HELPERS ================= */
 
   const priorityBadge = (p) =>
@@ -148,6 +163,7 @@ const openInMaps = (complaint) => {
   return (
     <div className="container py-4">
       <h3 className="fw-bold mb-4">Authority Dashboard</h3>
+
 
       {/* ================= ANALYTICS ================= */}
       <div className="row g-3 mb-4">
@@ -452,6 +468,22 @@ const openInMaps = (complaint) => {
     objectFit: "contain"
   }}
 />
+{/* ================= WORKER PROOF ================= */}
+{reviewComplaint.workerProofImage ? (
+  <div className="mt-3">
+    <h6>Worker Completion Proof</h6>
+    <img
+      src={`http://localhost:5000/${reviewComplaint.workerProofImage}`}
+      alt="Worker Proof"
+      className="img-fluid rounded"
+      style={{ maxHeight: "40vh", objectFit: "contain" }}
+    />
+  </div>
+) : (
+  <p className="text-muted mt-3">
+    No completion proof uploaded by worker.
+  </p>
+)}
 
 
               {!reviewComplaint.authorityDecision.verified && (
@@ -521,29 +553,47 @@ const openInMaps = (complaint) => {
               </div>
 
               <div className="d-flex gap-2 mt-4">
-                <button
-                  className="btn btn-secondary w-50"
-                  onClick={() => setReviewComplaint(null)}
-                >
-                  Cancel
-                </button>
+<button
+  className="btn btn-secondary btn-sm"
+  style={{ minWidth: "120px", height: "36px" }}
+  onClick={() => setReviewComplaint(null)}
+>
+  Cancel
+</button>
 
-                {!reviewComplaint.authorityDecision.verified ? (
-                  <button
-                    className="btn btn-success w-50"
-                    onClick={handleVerify}
-                  >
-                    Verify & Confirm
-                  </button>
-                ) : (
-                  <button
-                    className="btn btn-primary w-50"
-                    onClick={handleStatusUpdate}
-                  >
-                    Update Status
-                  </button>
-                )}
-              </div>
+{!reviewComplaint.authorityDecision.verified && (
+  <button
+    className="btn btn-primary btn-sm"
+    style={{ minWidth: "160px", height: "36px" }}
+    onClick={handleVerify}
+  >
+    Verify Complaint
+  </button>
+)}
+
+<button
+  className="btn btn-outline-primary btn-sm"
+  style={{ minWidth: "160px", height: "36px" }}
+  onClick={handleStatusUpdate}
+>
+  Update Status
+</button>
+
+{reviewComplaint.workerStatus === "Work Completed" &&
+  reviewComplaint.workerProofImage && (
+    <button
+      className="btn btn-success btn-sm"
+      style={{ minWidth: "200px", height: "36px" }}
+      onClick={() =>
+        handleVerifyAndResolve(reviewComplaint._id)
+      }
+    >
+      Verify Proof & Resolve
+    </button>
+)}
+
+</div>
+
             </div>
           </div>
         </div>

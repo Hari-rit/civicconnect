@@ -5,18 +5,18 @@ const {
   updateWorkerProfile,
   getAssignedComplaints,
   requestComplaint,
-  updateWorkStatus
+  updateWorkStatus,
+  uploadWorkProof
 } = require("../controllers/workerController");
 
-// Middleware
 const { authenticateUser } = require("../middleware/authMiddleware");
 const { isWorker } = require("../middleware/roleMiddleware");
+const upload = require("../middleware/upload");
 
-/* ======================================================
-   WORKER ROUTES
-   ====================================================== */
+/* ================= WORKER ROUTES ================= */
 
-// Update worker profile (skills + gender)
+// 🔥 ORDER IS IMPORTANT: authenticateUser → isWorker
+
 router.put(
   "/profile",
   authenticateUser,
@@ -24,7 +24,6 @@ router.put(
   updateWorkerProfile
 );
 
-// Get complaints assigned to this worker
 router.get(
   "/complaints",
   authenticateUser,
@@ -32,7 +31,6 @@ router.get(
   getAssignedComplaints
 );
 
-// Request a verified complaint
 router.post(
   "/complaints/:complaintId/request",
   authenticateUser,
@@ -40,12 +38,19 @@ router.post(
   requestComplaint
 );
 
-// Update worker work status
 router.put(
   "/complaints/:complaintId/status",
   authenticateUser,
   isWorker,
   updateWorkStatus
+);
+
+router.post(
+  "/complaints/:complaintId/proof",
+  authenticateUser,
+  isWorker,
+  upload.single("proof"),
+  uploadWorkProof
 );
 
 module.exports = router;

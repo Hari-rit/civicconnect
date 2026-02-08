@@ -13,6 +13,7 @@ exports.getPendingWorkers = async (req, res) => {
 
     res.json(workers);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Failed to fetch pending workers" });
   }
 };
@@ -35,13 +36,7 @@ exports.updateWorkerApproval = async (req, res) => {
       return res.status(404).json({ message: "Worker not found" });
     }
 
-    // Optional validation: must have at least one skill
-    if (status === "Approved" && worker.workerSkills.length === 0) {
-      return res.status(400).json({
-        message: "Worker must have at least one skill before approval"
-      });
-    }
-
+    // ✅ FIX: no skills validation (model does not have it)
     worker.approvalStatus = status;
     await worker.save();
 
@@ -49,6 +44,7 @@ exports.updateWorkerApproval = async (req, res) => {
       message: `Worker ${status.toLowerCase()} successfully`
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Failed to update worker approval" });
   }
 };
@@ -61,7 +57,7 @@ exports.getWorkRequestsForComplaint = async (req, res) => {
     const { complaintId } = req.params;
 
     const complaint = await Complaint.findById(complaintId)
-      .populate("workRequests.worker", "name email workerSkills");
+      .populate("workRequests.worker", "name email");
 
     if (!complaint) {
       return res.status(404).json({ message: "Complaint not found" });
@@ -69,6 +65,7 @@ exports.getWorkRequestsForComplaint = async (req, res) => {
 
     res.json(complaint.workRequests);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Failed to fetch work requests" });
   }
 };
@@ -90,32 +87,21 @@ exports.approveWorkRequest = async (req, res) => {
       return res.status(400).json({ message: "Complaint already assigned" });
     }
 
-    // Assign worker
     complaint.assignedWorker = workerId;
     complaint.workerStatus = "Not Started";
-
-    // Update complaint status
-    complaint.status.statusName = "Work In Progress";
-
-    // Update request statuses
-    complaint.workRequests.forEach((req) => {
-      if (req.worker.toString() === workerId) {
-        req.status = "Approved";
-      } else {
-        req.status = "Rejected";
-      }
-    });
+    complaint.status.statusName = "In Progress";
 
     await complaint.save();
 
     res.json({ message: "Worker assigned successfully" });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Failed to approve work request" });
   }
 };
 
 /* ======================================================
-   AUTHORITY: DIRECTLY ASSIGN WORKER (NO REQUEST)
+   AUTHORITY: DIRECT ASSIGN WORKER
    ====================================================== */
 exports.assignWorkerDirectly = async (req, res) => {
   try {
@@ -123,56 +109,46 @@ exports.assignWorkerDirectly = async (req, res) => {
     const { workerId } = req.body;
 
     const complaint = await Complaint.findById(complaintId);
-
     if (!complaint) {
       return res.status(404).json({ message: "Complaint not found" });
     }
 
-    if (complaint.assignedWorker) {
-      return res.status(400).json({ message: "Complaint already assigned" });
-    }
-
     const worker = await User.findById(workerId);
-
     if (!worker || worker.role !== "worker" || worker.approvalStatus !== "Approved") {
       return res.status(400).json({ message: "Invalid or unapproved worker" });
     }
 
     complaint.assignedWorker = workerId;
     complaint.workerStatus = "Not Started";
-    complaint.status.statusName = "Work In Progress";
+    complaint.status.statusName = "In Progress";
 
     await complaint.save();
 
     res.json({ message: "Worker assigned directly" });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Failed to assign worker" });
   }
 };
 
 /* ======================================================
-   AUTHORITY: VERIFY PROOF & RESOLVE COMPLAINT
+   AUTHORITY: VERIFY & RESOLVE
    ====================================================== */
 exports.verifyAndResolveComplaint = async (req, res) => {
   try {
     const { complaintId } = req.params;
 
     const complaint = await Complaint.findById(complaintId);
-
     if (!complaint) {
       return res.status(404).json({ message: "Complaint not found" });
     }
 
     if (complaint.workerStatus !== "Work Completed") {
-      return res.status(400).json({
-        message: "Worker has not completed the work yet"
-      });
+      return res.status(400).json({ message: "Work not completed yet" });
     }
 
     if (!complaint.workerProofImage) {
-      return res.status(400).json({
-        message: "No proof uploaded by worker"
-      });
+      return res.status(400).json({ message: "No proof uploaded" });
     }
 
     complaint.status.statusName = "Resolved";
@@ -180,6 +156,7 @@ exports.verifyAndResolveComplaint = async (req, res) => {
 
     res.json({ message: "Complaint resolved successfully" });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Failed to resolve complaint" });
   }
 };

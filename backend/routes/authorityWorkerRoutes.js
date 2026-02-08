@@ -10,15 +10,13 @@ const {
   verifyAndResolveComplaint
 } = require("../controllers/authorityWorkerController");
 
-// Middleware (assumed to already exist)
 const { authenticateUser } = require("../middleware/authMiddleware");
 const { isAuthority } = require("../middleware/roleMiddleware");
 
-/* ======================================================
-   AUTHORITY: WORKER MANAGEMENT ROUTES
-   ====================================================== */
+/* ================= AUTHORITY ROUTES ================= */
 
-// View all pending worker registrations
+// ✅ ORDER MATTERS: authenticateUser → isAuthority
+
 router.get(
   "/workers/pending",
   authenticateUser,
@@ -26,7 +24,6 @@ router.get(
   getPendingWorkers
 );
 
-// Approve or reject a worker
 router.put(
   "/workers/:workerId/approval",
   authenticateUser,
@@ -34,7 +31,6 @@ router.put(
   updateWorkerApproval
 );
 
-// View work requests for a complaint
 router.get(
   "/complaints/:complaintId/requests",
   authenticateUser,
@@ -42,7 +38,6 @@ router.get(
   getWorkRequestsForComplaint
 );
 
-// Approve a specific work request (assign worker)
 router.put(
   "/complaints/:complaintId/approve/:workerId",
   authenticateUser,
@@ -50,7 +45,6 @@ router.put(
   approveWorkRequest
 );
 
-// Directly assign a worker (no request)
 router.put(
   "/complaints/:complaintId/assign",
   authenticateUser,
@@ -58,7 +52,6 @@ router.put(
   assignWorkerDirectly
 );
 
-// Verify worker proof & resolve complaint
 router.put(
   "/complaints/:complaintId/resolve",
   authenticateUser,
