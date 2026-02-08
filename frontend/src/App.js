@@ -6,6 +6,7 @@ import Register from "./pages/Register";
 import SubmitComplaint from "./pages/SubmitComplaint";
 import ComplaintStatus from "./pages/ComplaintStatus";
 import AuthorityDashboard from "./pages/AuthorityDashboard";
+import WorkerDashboard from "./pages/WorkerDashboard";
 
 // Helper: get logged-in user
 const getUser = () => {
@@ -61,6 +62,14 @@ function App() {
           <div className="navbar-nav">
             <Link className="nav-link" to="/authority">
               Authority
+            </Link>
+          </div>
+        )}
+
+        {user && user.role === "worker" && (
+          <div className="navbar-nav">
+            <Link className="nav-link" to="/worker">
+              Worker Dashboard
             </Link>
           </div>
         )}
@@ -122,6 +131,16 @@ function App() {
           element={
             <ProtectedRoute role="authority">
               <AuthorityDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Worker route */}
+        <Route
+          path="/worker"
+          element={
+            <ProtectedRoute role="worker">
+              <WorkerDashboard />
             </ProtectedRoute>
           }
         />

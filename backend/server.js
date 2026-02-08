@@ -5,6 +5,8 @@ const path = require("path");
 
 const authRoutes = require("./routes/authRoutes");
 const complaintRoutes = require("./routes/complaintRoutes");
+const workerRoutes = require("./routes/workerRoutes");
+const authorityWorkerRoutes = require("./routes/authorityWorkerRoutes");
 
 const app = express();
 
@@ -20,6 +22,9 @@ app.use(
 /* ROUTES */
 app.use("/auth", authRoutes);
 app.use("/complaints", complaintRoutes);
+app.use("/worker", workerRoutes);
+app.use("/authority", authorityWorkerRoutes);
+
 
 mongoose
   .connect("mongodb://127.0.0.1:27017/civicconnect")
