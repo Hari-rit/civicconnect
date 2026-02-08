@@ -54,8 +54,11 @@ exports.createComplaint = async (req, res) => {
 
         issueType = mlResponse.data.issueType;
         confidence = mlResponse.data.confidence;
-      } catch {}
+      } catch {
+        // ML failure should not block complaint creation
+      }
 
+      /* EXIF fallback */
       if (!locationData.latitude) {
         try {
           const imageBuffer = fs.readFileSync(
@@ -84,12 +87,14 @@ exports.createComplaint = async (req, res) => {
         category: "Pending",
         priority: "Pending",
         verified: false
+      },
+      status: {
+        statusName: "Submitted"
       }
     });
 
     await complaint.save();
     res.status(201).json({ message: "Complaint submitted", complaint });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Upload failed" });
@@ -103,6 +108,7 @@ exports.getComplaintsByUser = async (req, res) => {
   try {
     const complaints = await Complaint.find({ userId: req.params.userId })
       .sort({ createdAt: -1 });
+
     res.json(complaints);
   } catch {
     res.status(500).json({ message: "Failed to fetch complaints" });
@@ -114,6 +120,7 @@ exports.getAllComplaints = async (req, res) => {
     const complaints = await Complaint.find()
       .populate("userId", "name email")
       .sort({ createdAt: -1 });
+
     res.json(complaints);
   } catch {
     res.status(500).json({ message: "Failed to fetch complaints" });
@@ -121,7 +128,7 @@ exports.getAllComplaints = async (req, res) => {
 };
 
 /* =====================================================
-   UPDATE STATUS ONLY (after verification)
+   UPDATE STATUS ONLY (Worker / Authority)
 ===================================================== */
 exports.updateComplaintStatus = async (req, res) => {
   try {
@@ -136,6 +143,7 @@ exports.updateComplaintStatus = async (req, res) => {
     res.status(500).json({ message: "Status update failed" });
   }
 };
+
 /* =====================================================
    AUTHORITY: VERIFY + CATEGORY + PRIORITY + STATUS
 ===================================================== */
@@ -152,10 +160,10 @@ exports.verifyComplaint = async (req, res) => {
           verified: true
         },
         status: {
-          statusName   // 🔥 IMPORTANT: no default, use dropdown value
+          statusName
         }
       },
-      { new: true } // 🔥 ensures updated doc
+      { new: true }
     );
 
     res.json({
@@ -167,4 +175,24 @@ exports.verifyComplaint = async (req, res) => {
     res.status(500).json({ message: "Verification failed" });
   }
 };
+
+/* =====================================================
+   AVAILABLE WORKS (Worker)
+===================================================== */
+exports.getAvailableWorks = async (req, res) => {
+  try {
+    const complaints = await Complaint.find({
+  "authorityDecision.verified": true,
+  "status.statusName": "Submitted",
+  assignedWorker: null
+})
+
+
+    res.json(complaints);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch available works" });
+  }
+};
+
 

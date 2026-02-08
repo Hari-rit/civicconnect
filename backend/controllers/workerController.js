@@ -15,7 +15,6 @@ exports.updateWorkerProfile = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    // ✅ Workers can add skills EVEN BEFORE approval
     if (!Array.isArray(workerSkills) || workerSkills.length === 0) {
       return res.status(400).json({
         message: "At least one skill is required"
@@ -27,33 +26,50 @@ exports.updateWorkerProfile = async (req, res) => {
 
     res.json({
       message: "Worker skills updated successfully",
-      worker: {
-        name: worker.name,
-        workerSkills: worker.workerSkills,
-        approvalStatus: worker.approvalStatus
-      }
+      workerSkills: worker.workerSkills,
+      approvalStatus: worker.approvalStatus
     });
-  } catch (error) {
+  } catch {
     res.status(500).json({ message: "Failed to update worker profile" });
   }
 };
 
 /* ======================================================
-   WORKER: VIEW ASSIGNED COMPLAINTS
+   🔥 WORKER: VIEW AVAILABLE WORKS (FIXED)
    ====================================================== */
-exports.getAssignedComplaints = async (req, res) => {
+exports.getAvailableComplaints = async (req, res) => {
   try {
-    const workerId = req.user._id;
+    const worker = await User.findById(req.user._id);
+
+    // Worker must be approved
+    if (worker.approvalStatus !== "Approved") {
+      return res.json([]);
+    }
+
+    // Worker must have skills
+    if (!worker.workerSkills || worker.workerSkills.length === 0) {
+      return res.json([]);
+    }
 
     const complaints = await Complaint.find({
-      assignedWorker: workerId
+      // Authority verified only
+      "authorityDecision.verified": true,
+
+      // Not already assigned
+      assignedWorker: null,
+
+      // Category must match worker skills
+      "authorityDecision.category": { $in: worker.workerSkills },
+
+      // Worker should NOT have already requested it
+      "workRequests.worker": { $ne: worker._id }
     })
-      .populate("userId", "name email")
       .sort({ createdAt: -1 });
 
     res.json(complaints);
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch assigned complaints" });
+    console.error(error);
+    res.status(500).json({ message: "Failed to fetch available works" });
   }
 };
 
@@ -83,7 +99,7 @@ exports.requestComplaint = async (req, res) => {
       return res.status(400).json({ message: "Complaint already assigned" });
     }
 
-    const alreadyRequested = complaint.workRequests?.some(
+    const alreadyRequested = complaint.workRequests.some(
       (r) => r.worker.toString() === workerId.toString()
     );
 
@@ -101,8 +117,26 @@ exports.requestComplaint = async (req, res) => {
     await complaint.save();
 
     res.json({ message: "Work request submitted successfully" });
-  } catch (error) {
+  } catch {
     res.status(500).json({ message: "Failed to request complaint" });
+  }
+};
+
+/* ======================================================
+   WORKER: VIEW ASSIGNED COMPLAINTS
+   ====================================================== */
+exports.getAssignedComplaints = async (req, res) => {
+  try {
+    const workerId = req.user._id;
+
+    const complaints = await Complaint.find({
+      assignedWorker: workerId
+    })
+      .sort({ createdAt: -1 });
+
+    res.json(complaints);
+  } catch {
+    res.status(500).json({ message: "Failed to fetch assigned complaints" });
   }
 };
 
@@ -145,7 +179,7 @@ exports.updateWorkStatus = async (req, res) => {
     await complaint.save();
 
     res.json({ message: "Worker status updated successfully" });
-  } catch (error) {
+  } catch {
     res.status(500).json({ message: "Failed to update work status" });
   }
 };
@@ -183,7 +217,7 @@ exports.uploadWorkProof = async (req, res) => {
     await complaint.save();
 
     res.json({ message: "Work proof uploaded successfully" });
-  } catch (error) {
+  } catch {
     res.status(500).json({ message: "Failed to upload work proof" });
   }
 };

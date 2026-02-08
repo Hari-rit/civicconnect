@@ -1,45 +1,38 @@
 import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
-
-const ALL_SKILLS = [
-  "Garbage",
-  "Pothole",
-  "Water Leakage",
-  "Electrical",
-  "Road Sign"
-];
+import WorkerSkillsPopup from "../components/WorkerSkillsPopup";
+import WorkerNavbar from "../components/WorkerNavbar";
 
 const WorkerDashboard = () => {
   const user = JSON.parse(localStorage.getItem("user"));
 
-  const [activeTab, setActiveTab] = useState("skills");
+  const [activeTab, setActiveTab] = useState("assigned");
 
-  /* ================= SKILLS ================= */
-  const [selectedSkills, setSelectedSkills] = useState([]);
-  const [savingSkills, setSavingSkills] = useState(false);
-  const [skillsLoaded, setSkillsLoaded] = useState(false);
+  /* ================= SKILLS / ONBOARDING ================= */
+  const [showSkillsPopup, setShowSkillsPopup] = useState(false);
 
   /* ================= ASSIGNED WORKS ================= */
   const [complaints, setComplaints] = useState([]);
   const [loadingComplaints, setLoadingComplaints] = useState(false);
   const [complaintError, setComplaintError] = useState("");
 
-  const [proofFiles, setProofFiles] = useState({});
+  /* ================= AVAILABLE WORKS ================= */
+  const [availableWorks, setAvailableWorks] = useState([]);
+  const [loadingAvailable, setLoadingAvailable] = useState(false);
+  const [availableFetched, setAvailableFetched] = useState(false); // 🔑 FIX
 
   /* ================= LOAD WORKER PROFILE ================= */
   const fetchWorkerProfile = useCallback(async () => {
     try {
       const res = await axios.get(
         "http://localhost:5000/worker/profile",
-        {
-          headers: { "x-user-id": user?.id }
-        }
+        { headers: { "x-user-id": user?.id } }
       );
 
-      setSelectedSkills(res.data.workerSkills || []);
-      setSkillsLoaded(true);
-    } catch {
-      console.error("Failed to load worker profile");
+      const skills = res.data.workerSkills || [];
+      setShowSkillsPopup(skills.length === 0);
+    } catch (err) {
+      console.error("Failed to load worker profile", err);
     }
   }, [user]);
 
@@ -50,13 +43,10 @@ const WorkerDashboard = () => {
       setComplaintError("");
 
       const res = await axios.get(
-        "http://localhost:5000/worker/complaints",
-        {
-          headers: { "x-user-id": user?.id }
-        }
+        `http://localhost:5000/complaints/user/${user?.id}`
       );
 
-      setComplaints(res.data);
+      setComplaints(res.data || []);
     } catch {
       setComplaintError("Failed to load assigned complaints");
     } finally {
@@ -64,69 +54,50 @@ const WorkerDashboard = () => {
     }
   }, [user]);
 
+  /* ================= LOAD AVAILABLE WORKS (NO FLICKER) ================= */
+  const fetchAvailableWorks = useCallback(async () => {
+    if (availableFetched) return; // 🔒 prevents re-fetch flicker
+
+    try {
+      setLoadingAvailable(true);
+
+      const res = await axios.get(
+        "http://localhost:5000/complaints/available"
+      );
+
+      setAvailableWorks(res.data || []);
+      setAvailableFetched(true); // 🔒 lock it
+    } catch (err) {
+      console.error("Failed to load available works", err);
+    } finally {
+      setLoadingAvailable(false);
+    }
+  }, [availableFetched]);
+
   /* ================= INITIAL LOAD ================= */
   useEffect(() => {
     fetchWorkerProfile();
     fetchAssignedComplaints();
   }, [fetchWorkerProfile, fetchAssignedComplaints]);
 
-  /* ================= SAVE SKILLS ================= */
-  const toggleSkill = (skill) => {
-    setSelectedSkills((prev) =>
-      prev.includes(skill)
-        ? prev.filter((s) => s !== skill)
-        : [...prev, skill]
-    );
-  };
-
-  const saveSkills = async () => {
-    if (selectedSkills.length === 0) {
-      alert("Select at least one skill");
-      return;
+  /* ================= TAB-BASED FETCH ================= */
+  useEffect(() => {
+    if (activeTab === "available") {
+      fetchAvailableWorks();
     }
-
-    try {
-      setSavingSkills(true);
-      await axios.put(
-        "http://localhost:5000/worker/profile",
-        { workerSkills: selectedSkills },
-        { headers: { "x-user-id": user?.id } }
-      );
-      alert("Skills saved successfully");
-    } catch {
-      alert("Failed to save skills");
-    } finally {
-      setSavingSkills(false);
-    }
-  };
+  }, [activeTab, fetchAvailableWorks]);
 
   /* ================= UPDATE WORK STATUS ================= */
-  const updateStatus = async (id, status) => {
-    await axios.put(
-      `http://localhost:5000/worker/complaints/${id}/status`,
-      { workerStatus: status },
-      { headers: { "x-user-id": user?.id } }
-    );
-    fetchAssignedComplaints();
-  };
-
-  /* ================= UPLOAD PROOF ================= */
-  const uploadProof = async (id) => {
-    const formData = new FormData();
-    formData.append("proof", proofFiles[id]);
-
-    await axios.post(
-      `http://localhost:5000/worker/complaints/${id}/proof`,
-      formData,
-      {
-        headers: {
-          "x-user-id": user?.id,
-          "Content-Type": "multipart/form-data"
-        }
-      }
-    );
-
-    fetchAssignedComplaints();
+  const updateStatus = async (id, statusName) => {
+    try {
+      await axios.put(
+        `http://localhost:5000/complaints/${id}/status`,
+        { statusName }
+      );
+      fetchAssignedComplaints();
+    } catch {
+      alert("Failed to update work status");
+    }
   };
 
   /* ================= UI ================= */
@@ -134,58 +105,22 @@ const WorkerDashboard = () => {
     <div className="container mt-4">
       <h3>Worker Dashboard</h3>
 
-      {/* Tabs */}
-      <ul className="nav nav-tabs mb-3">
-        <li className="nav-item">
-          <button
-            className={`nav-link ${activeTab === "skills" ? "active" : ""}`}
-            onClick={() => setActiveTab("skills")}
-          >
-            My Skills
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link ${activeTab === "assigned" ? "active" : ""}`}
-            onClick={() => setActiveTab("assigned")}
-          >
-            Assigned Works
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link ${activeTab === "available" ? "active" : ""}`}
-            onClick={() => setActiveTab("available")}
-          >
-            Available Works
-          </button>
-        </li>
-      </ul>
-
-      {/* ================= SKILLS TAB ================= */}
-      {activeTab === "skills" && skillsLoaded && (
-        <div className="card p-3">
-          <h5>Select Your Skills</h5>
-          {ALL_SKILLS.map((skill) => (
-            <div key={skill} className="form-check">
-              <input
-                type="checkbox"
-                className="form-check-input"
-                checked={selectedSkills.includes(skill)}
-                onChange={() => toggleSkill(skill)}
-              />
-              <label className="form-check-label">{skill}</label>
-            </div>
-          ))}
-          <button
-            className="btn btn-primary mt-3"
-            disabled={savingSkills}
-            onClick={saveSkills}
-          >
-            {savingSkills ? "Saving..." : "Save Skills"}
-          </button>
-        </div>
+      {/* 🔒 Skills onboarding popup */}
+      {showSkillsPopup && (
+        <WorkerSkillsPopup
+          userId={user.id}
+          onSaved={() => {
+            setShowSkillsPopup(false);
+            setActiveTab("assigned");
+            fetchWorkerProfile();
+          }}
+        />
       )}
+
+      <WorkerNavbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+      />
 
       {/* ================= ASSIGNED WORKS ================= */}
       {activeTab === "assigned" && (
@@ -199,36 +134,20 @@ const WorkerDashboard = () => {
 
           {complaints.map((c) => (
             <div key={c._id} className="card p-3 mb-3">
-              <strong>{c.location.area}</strong>
-              <p>Status: {c.workerStatus}</p>
+              <strong>{c.location?.area}</strong>
+              <p>Status: {c.status?.statusName}</p>
 
               <select
                 className="form-select mb-2"
-                value={c.workerStatus}
-                onChange={(e) => updateStatus(c._id, e.target.value)}
+                value={c.status?.statusName}
+                onChange={(e) =>
+                  updateStatus(c._id, e.target.value)
+                }
               >
-                <option>Not Started</option>
-                <option>In Progress</option>
-                <option>Work Completed</option>
+                <option value="Submitted">Submitted</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Resolved">Resolved</option>
               </select>
-
-              {c.workerStatus === "Work Completed" && (
-                <>
-                  <input
-                    type="file"
-                    className="form-control mb-2"
-                    onChange={(e) =>
-                      setProofFiles({ ...proofFiles, [c._id]: e.target.files[0] })
-                    }
-                  />
-                  <button
-                    className="btn btn-success"
-                    onClick={() => uploadProof(c._id)}
-                  >
-                    Upload Proof
-                  </button>
-                </>
-              )}
             </div>
           ))}
         </>
@@ -236,9 +155,28 @@ const WorkerDashboard = () => {
 
       {/* ================= AVAILABLE WORKS ================= */}
       {activeTab === "available" && (
-        <div className="alert alert-info">
-          Available works listing will appear here once authority publishes requests.
-        </div>
+        <>
+          {loadingAvailable && availableWorks.length === 0 && (
+            <p>Loading available works...</p>
+          )}
+
+          {!loadingAvailable && availableWorks.length === 0 && (
+            <p>No available works right now.</p>
+          )}
+
+          {availableWorks.map((c) => (
+            <div key={c._id} className="card p-3 mb-3">
+              <strong>{c.location?.area}</strong>
+              <p>Category: {c.authorityDecision?.category}</p>
+              <p>Priority: {c.authorityDecision?.priority}</p>
+              <p>Status: {c.status?.statusName}</p>
+
+              <button className="btn btn-outline-primary" disabled>
+                Request Work (next)
+              </button>
+            </div>
+          ))}
+        </>
       )}
     </div>
   );

@@ -6,7 +6,8 @@ const {
   getAssignedComplaints,
   requestComplaint,
   updateWorkStatus,
-  uploadWorkProof
+  uploadWorkProof,
+  getAvailableComplaints
 } = require("../controllers/workerController");
 
 const { authenticateUser } = require("../middleware/authMiddleware");
@@ -29,6 +30,13 @@ router.get(
   authenticateUser,
   isWorker,
   getAssignedComplaints
+);
+
+router.get(
+  "/available-complaints",
+  authenticateUser,
+  isWorker,
+  getAvailableComplaints
 );
 
 router.post(

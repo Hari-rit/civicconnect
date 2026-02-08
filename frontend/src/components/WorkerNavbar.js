@@ -7,17 +7,6 @@ const WorkerNavbar = ({ activeTab, setActiveTab }) => {
         <li className="nav-item">
           <button
             className={`nav-link ${
-              activeTab === "skills" ? "active" : ""
-            }`}
-            onClick={() => setActiveTab("skills")}
-          >
-            My Skills
-          </button>
-        </li>
-
-        <li className="nav-item">
-          <button
-            className={`nav-link ${
               activeTab === "assigned" ? "active" : ""
             }`}
             onClick={() => setActiveTab("assigned")}

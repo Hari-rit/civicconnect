@@ -7,18 +7,26 @@ const {
   getComplaintsByUser,
   getAllComplaints,
   updateComplaintStatus,
-  verifyComplaint
+  verifyComplaint,
+  getAvailableWorks
 } = require("../controllers/complaintController");
 
 /* ===============================
    Citizen Routes
 =============================== */
 
-// Create complaint 
+// Create complaint
 router.post("/", upload.single("media"), createComplaint);
 
 // Get complaints by logged-in user
 router.get("/user/:userId", getComplaintsByUser);
+
+/* ===============================
+   Worker Routes
+=============================== */
+
+// Get available works for workers
+router.get("/available", getAvailableWorks);
 
 /* ===============================
    Authority Routes
@@ -27,10 +35,10 @@ router.get("/user/:userId", getComplaintsByUser);
 // Get all complaints
 router.get("/", getAllComplaints);
 
-// Update complaint status (Submitted  In Progress  Resolved)
+// Update complaint status (Submitted / Approved / In Progress / Resolved)
 router.put("/:id/status", updateComplaintStatus);
 
-//   verify ai prediction set category priority
+// Verify AI prediction, set category & priority
 router.put("/:id/verify", verifyComplaint);
 
 module.exports = router;
