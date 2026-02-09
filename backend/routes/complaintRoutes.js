@@ -8,7 +8,8 @@ const {
   getAllComplaints,
   updateComplaintStatus,
   verifyComplaint,
-  getAvailableWorks
+  getAvailableWorks,
+  requestWork
 } = require("../controllers/complaintController");
 
 /* ===============================
@@ -28,6 +29,9 @@ router.get("/user/:userId", getComplaintsByUser);
 // Get available works for workers
 router.get("/available", getAvailableWorks);
 
+// Worker requests a complaint
+router.post("/:id/request", requestWork);
+
 /* ===============================
    Authority Routes
 =============================== */
@@ -35,7 +39,7 @@ router.get("/available", getAvailableWorks);
 // Get all complaints
 router.get("/", getAllComplaints);
 
-// Update complaint status (Submitted / Approved / In Progress / Resolved)
+// Update complaint status (Submitted / In Progress / Resolved)
 router.put("/:id/status", updateComplaintStatus);
 
 // Verify AI prediction, set category & priority

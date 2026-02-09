@@ -1,4 +1,9 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useRef
+} from "react";
 import axios from "axios";
 import WorkerSkillsPopup from "../components/WorkerSkillsPopup";
 import WorkerNavbar from "../components/WorkerNavbar";
@@ -10,16 +15,23 @@ const WorkerDashboard = () => {
 
   /* ================= SKILLS / ONBOARDING ================= */
   const [showSkillsPopup, setShowSkillsPopup] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false); // 🔑 NEW
+  const [skillsLocked, setSkillsLocked] = useState(false);   // 🔑 NEW
 
   /* ================= ASSIGNED WORKS ================= */
   const [complaints, setComplaints] = useState([]);
-  const [loadingComplaints, setLoadingComplaints] = useState(false);
-  const [complaintError, setComplaintError] = useState("");
+  const [loadingComplaints, setLoadingComplaints] = useState(true);
+  const [assignedFetched, setAssignedFetched] = useState(false);
+
+  // 🔒 StrictMode guard
+  const assignedFetchOnce = useRef(false);
 
   /* ================= AVAILABLE WORKS ================= */
   const [availableWorks, setAvailableWorks] = useState([]);
   const [loadingAvailable, setLoadingAvailable] = useState(false);
-  const [availableFetched, setAvailableFetched] = useState(false); // 🔑 FIX
+  const availableFetchOnce = useRef(false);
+
+  const [requestingId, setRequestingId] = useState(null);
 
   /* ================= LOAD WORKER PROFILE ================= */
   const fetchWorkerProfile = useCallback(async () => {
@@ -29,34 +41,51 @@ const WorkerDashboard = () => {
         { headers: { "x-user-id": user?.id } }
       );
 
-      const skills = res.data.workerSkills || [];
-      setShowSkillsPopup(skills.length === 0);
+      const skills = Array.isArray(res.data.workerSkills)
+        ? res.data.workerSkills
+        : [];
+
+      const completed =
+        res.data.skillsCompleted === true ||
+        skills.length > 0;
+
+      if (!completed && !skillsLocked) {
+        setShowSkillsPopup(true);
+      } else {
+        setShowSkillsPopup(false);
+      }
+
+      setProfileLoaded(true);
     } catch (err) {
       console.error("Failed to load worker profile", err);
     }
-  }, [user]);
+  }, [user, skillsLocked]);
 
-  /* ================= LOAD ASSIGNED COMPLAINTS ================= */
+  /* ================= LOAD ASSIGNED WORKS ================= */
   const fetchAssignedComplaints = useCallback(async () => {
+    if (assignedFetchOnce.current) return;
+    assignedFetchOnce.current = true;
+
     try {
       setLoadingComplaints(true);
-      setComplaintError("");
 
       const res = await axios.get(
         `http://localhost:5000/complaints/user/${user?.id}`
       );
 
       setComplaints(res.data || []);
-    } catch {
-      setComplaintError("Failed to load assigned complaints");
+      setAssignedFetched(true);
+    } catch (err) {
+      console.error("Failed to load assigned complaints", err);
     } finally {
       setLoadingComplaints(false);
     }
   }, [user]);
 
-  /* ================= LOAD AVAILABLE WORKS (NO FLICKER) ================= */
+  /* ================= LOAD AVAILABLE WORKS ================= */
   const fetchAvailableWorks = useCallback(async () => {
-    if (availableFetched) return; // 🔒 prevents re-fetch flicker
+    if (availableFetchOnce.current) return;
+    availableFetchOnce.current = true;
 
     try {
       setLoadingAvailable(true);
@@ -65,14 +94,19 @@ const WorkerDashboard = () => {
         "http://localhost:5000/complaints/available"
       );
 
-      setAvailableWorks(res.data || []);
-      setAvailableFetched(true); // 🔒 lock it
+      const filtered = (res.data || []).filter(
+        (c) =>
+          c.status?.statusName === "Submitted" &&
+          c.authorityDecision?.verified === true
+      );
+
+      setAvailableWorks(filtered);
     } catch (err) {
       console.error("Failed to load available works", err);
     } finally {
       setLoadingAvailable(false);
     }
-  }, [availableFetched]);
+  }, []);
 
   /* ================= INITIAL LOAD ================= */
   useEffect(() => {
@@ -87,6 +121,31 @@ const WorkerDashboard = () => {
     }
   }, [activeTab, fetchAvailableWorks]);
 
+  /* ================= REQUEST WORK ================= */
+  const requestWork = async (complaintId) => {
+    try {
+      setRequestingId(complaintId);
+
+      await axios.post(
+        `http://localhost:5000/complaints/${complaintId}/request`,
+        { workerId: user.id }
+      );
+
+      setAvailableWorks((prev) =>
+        prev.filter((c) => c._id !== complaintId)
+      );
+
+      alert("Work request sent to authority");
+    } catch (err) {
+      alert(
+        err.response?.data?.message ||
+          "Failed to request work"
+      );
+    } finally {
+      setRequestingId(null);
+    }
+  };
+
   /* ================= UPDATE WORK STATUS ================= */
   const updateStatus = async (id, statusName) => {
     try {
@@ -94,6 +153,9 @@ const WorkerDashboard = () => {
         `http://localhost:5000/complaints/${id}/status`,
         { statusName }
       );
+
+      assignedFetchOnce.current = false;
+      setAssignedFetched(false);
       fetchAssignedComplaints();
     } catch {
       alert("Failed to update work status");
@@ -105,13 +167,13 @@ const WorkerDashboard = () => {
     <div className="container mt-4">
       <h3>Worker Dashboard</h3>
 
-      {/* 🔒 Skills onboarding popup */}
-      {showSkillsPopup && (
+      {/* 🔒 SKILL POPUP (FIXED) */}
+      {profileLoaded && showSkillsPopup && (
         <WorkerSkillsPopup
           userId={user.id}
           onSaved={() => {
+            setSkillsLocked(true);     // 🔒 lock forever
             setShowSkillsPopup(false);
-            setActiveTab("assigned");
             fetchWorkerProfile();
           }}
         />
@@ -125,20 +187,25 @@ const WorkerDashboard = () => {
       {/* ================= ASSIGNED WORKS ================= */}
       {activeTab === "assigned" && (
         <>
-          {loadingComplaints && <p>Loading assigned complaints...</p>}
-          {complaintError && <p className="text-danger">{complaintError}</p>}
-
-          {!loadingComplaints && complaints.length === 0 && (
-            <p>No works assigned yet.</p>
+          {loadingComplaints && (
+            <p>Loading assigned complaints...</p>
           )}
+
+          {!loadingComplaints &&
+            assignedFetched &&
+            complaints.length === 0 && (
+              <p>No works assigned yet.</p>
+            )}
 
           {complaints.map((c) => (
             <div key={c._id} className="card p-3 mb-3">
-              <strong>{c.location?.area}</strong>
+              <strong className="text-capitalize">
+                {c.location?.area}
+              </strong>
               <p>Status: {c.status?.statusName}</p>
 
               <select
-                className="form-select mb-2"
+                className="form-select"
                 value={c.status?.statusName}
                 onChange={(e) =>
                   updateStatus(c._id, e.target.value)
@@ -156,24 +223,68 @@ const WorkerDashboard = () => {
       {/* ================= AVAILABLE WORKS ================= */}
       {activeTab === "available" && (
         <>
-          {loadingAvailable && availableWorks.length === 0 && (
+          {loadingAvailable && (
             <p>Loading available works...</p>
           )}
 
-          {!loadingAvailable && availableWorks.length === 0 && (
-            <p>No available works right now.</p>
-          )}
+          {!loadingAvailable &&
+            availableWorks.length === 0 && (
+              <p>No available works right now.</p>
+            )}
 
           {availableWorks.map((c) => (
-            <div key={c._id} className="card p-3 mb-3">
-              <strong>{c.location?.area}</strong>
-              <p>Category: {c.authorityDecision?.category}</p>
-              <p>Priority: {c.authorityDecision?.priority}</p>
-              <p>Status: {c.status?.statusName}</p>
+            <div key={c._id} className="card mb-4 shadow-sm">
+              {c.media?.path && (
+                <img
+                  src={`http://localhost:5000${c.media.path}`}
+                  alt="complaint"
+                  className="card-img-top"
+                  style={{
+                    maxHeight: "220px",
+                    objectFit: "cover"
+                  }}
+                />
+              )}
 
-              <button className="btn btn-outline-primary" disabled>
-                Request Work (next)
-              </button>
+              <div className="card-body">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <h5 className="mb-0 text-capitalize">
+                    {c.location?.area}
+                  </h5>
+                  <span className="badge bg-dark">
+                    {c.status?.statusName}
+                  </span>
+                </div>
+
+                <p className="mb-1">
+                  <strong>Category:</strong>{" "}
+                  {c.authorityDecision?.category}
+                </p>
+
+                <p className="mb-1">
+                  <strong>Priority:</strong>{" "}
+                  {c.authorityDecision?.priority}
+                </p>
+
+                <p className="text-muted">
+                  Submitted on{" "}
+                  {new Date(c.createdAt).toLocaleDateString()}
+                </p>
+
+                <button
+                  className={`btn ${
+                    requestingId === c._id
+                      ? "btn-secondary"
+                      : "btn-outline-primary"
+                  } w-100`}
+                  disabled={requestingId === c._id}
+                  onClick={() => requestWork(c._id)}
+                >
+                  {requestingId === c._id
+                    ? "Requesting..."
+                    : "Request Work"}
+                </button>
+              </div>
             </div>
           ))}
         </>

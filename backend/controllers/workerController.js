@@ -2,11 +2,33 @@ const User = require("../models/User");
 const Complaint = require("../models/Complaint");
 
 /* ======================================================
+   WORKER: GET PROFILE (🔥 REQUIRED FOR SKILLS POPUP)
+====================================================== */
+exports.getWorkerProfile = async (req, res) => {
+  try {
+    const workerId = req.headers["x-user-id"];
+
+    const worker = await User.findById(workerId);
+
+    if (!worker || worker.role !== "worker") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    res.json({
+      workerSkills: worker.workerSkills || [],
+      approvalStatus: worker.approvalStatus
+    });
+  } catch {
+    res.status(500).json({ message: "Failed to fetch worker profile" });
+  }
+};
+
+/* ======================================================
    WORKER: CREATE / UPDATE PROFILE (SKILLS ONLY)
-   ====================================================== */
+====================================================== */
 exports.updateWorkerProfile = async (req, res) => {
   try {
-    const workerId = req.user._id;
+    const workerId = req.headers["x-user-id"];
     const { workerSkills } = req.body;
 
     const worker = await User.findById(workerId);
@@ -16,9 +38,9 @@ exports.updateWorkerProfile = async (req, res) => {
     }
 
     if (!Array.isArray(workerSkills) || workerSkills.length === 0) {
-      return res.status(400).json({
-        message: "At least one skill is required"
-      });
+      return res
+        .status(400)
+        .json({ message: "At least one skill is required" });
     }
 
     worker.workerSkills = workerSkills;
@@ -35,58 +57,50 @@ exports.updateWorkerProfile = async (req, res) => {
 };
 
 /* ======================================================
-   🔥 WORKER: VIEW AVAILABLE WORKS (FIXED)
-   ====================================================== */
+   WORKER: VIEW AVAILABLE COMPLAINTS (SKILL BASED)
+====================================================== */
 exports.getAvailableComplaints = async (req, res) => {
   try {
-    const worker = await User.findById(req.user._id);
+    const workerId = req.headers["x-user-id"];
+    const worker = await User.findById(workerId);
 
-    // Worker must be approved
+    // Must be approved
     if (worker.approvalStatus !== "Approved") {
       return res.json([]);
     }
 
-    // Worker must have skills
+    // Must have skills
     if (!worker.workerSkills || worker.workerSkills.length === 0) {
       return res.json([]);
     }
 
     const complaints = await Complaint.find({
-      // Authority verified only
       "authorityDecision.verified": true,
-
-      // Not already assigned
       assignedWorker: null,
-
-      // Category must match worker skills
       "authorityDecision.category": { $in: worker.workerSkills },
-
-      // Worker should NOT have already requested it
       "workRequests.worker": { $ne: worker._id }
-    })
-      .sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 });
 
     res.json(complaints);
-  } catch (error) {
-    console.error(error);
+  } catch {
     res.status(500).json({ message: "Failed to fetch available works" });
   }
 };
 
 /* ======================================================
    WORKER: REQUEST A COMPLAINT
-   ====================================================== */
+====================================================== */
 exports.requestComplaint = async (req, res) => {
   try {
-    const workerId = req.user._id;
+    const workerId = req.headers["x-user-id"];
     const { complaintId } = req.params;
 
     const worker = await User.findById(workerId);
 
     if (worker.approvalStatus !== "Approved") {
-      return res.status(403).json({
-        message: "Worker not approved yet"
-      });
+      return res
+        .status(403)
+        .json({ message: "Worker not approved yet" });
     }
 
     const complaint = await Complaint.findById(complaintId);
@@ -96,7 +110,9 @@ exports.requestComplaint = async (req, res) => {
     }
 
     if (complaint.assignedWorker) {
-      return res.status(400).json({ message: "Complaint already assigned" });
+      return res
+        .status(400)
+        .json({ message: "Complaint already assigned" });
     }
 
     const alreadyRequested = complaint.workRequests.some(
@@ -104,9 +120,9 @@ exports.requestComplaint = async (req, res) => {
     );
 
     if (alreadyRequested) {
-      return res.status(400).json({
-        message: "You have already requested this complaint"
-      });
+      return res
+        .status(400)
+        .json({ message: "You already requested this complaint" });
     }
 
     complaint.workRequests.push({
@@ -124,15 +140,14 @@ exports.requestComplaint = async (req, res) => {
 
 /* ======================================================
    WORKER: VIEW ASSIGNED COMPLAINTS
-   ====================================================== */
+====================================================== */
 exports.getAssignedComplaints = async (req, res) => {
   try {
-    const workerId = req.user._id;
+    const workerId = req.headers["x-user-id"];
 
     const complaints = await Complaint.find({
       assignedWorker: workerId
-    })
-      .sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 });
 
     res.json(complaints);
   } catch {
@@ -142,10 +157,10 @@ exports.getAssignedComplaints = async (req, res) => {
 
 /* ======================================================
    WORKER: UPDATE WORK STATUS
-   ====================================================== */
+====================================================== */
 exports.updateWorkStatus = async (req, res) => {
   try {
-    const workerId = req.user._id;
+    const workerId = req.headers["x-user-id"];
     const { complaintId } = req.params;
     const { workerStatus } = req.body;
 
@@ -165,9 +180,9 @@ exports.updateWorkStatus = async (req, res) => {
     });
 
     if (!complaint) {
-      return res.status(404).json({
-        message: "Complaint not assigned to you"
-      });
+      return res
+        .status(404)
+        .json({ message: "Complaint not assigned to you" });
     }
 
     complaint.workerStatus = workerStatus;
@@ -186,10 +201,10 @@ exports.updateWorkStatus = async (req, res) => {
 
 /* ======================================================
    WORKER: UPLOAD WORK COMPLETION PROOF
-   ====================================================== */
+====================================================== */
 exports.uploadWorkProof = async (req, res) => {
   try {
-    const workerId = req.user._id;
+    const workerId = req.headers["x-user-id"];
     const { complaintId } = req.params;
 
     if (!req.file) {
@@ -202,9 +217,9 @@ exports.uploadWorkProof = async (req, res) => {
     });
 
     if (!complaint) {
-      return res.status(404).json({
-        message: "Complaint not assigned to you"
-      });
+      return res
+        .status(404)
+        .json({ message: "Complaint not assigned to you" });
     }
 
     if (complaint.workerStatus !== "Work Completed") {

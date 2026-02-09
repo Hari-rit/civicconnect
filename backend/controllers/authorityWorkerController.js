@@ -3,7 +3,7 @@ const Complaint = require("../models/Complaint");
 
 /* ======================================================
    AUTHORITY: VIEW PENDING WORKERS
-   ====================================================== */
+====================================================== */
 exports.getPendingWorkers = async (req, res) => {
   try {
     const workers = await User.find({
@@ -20,7 +20,7 @@ exports.getPendingWorkers = async (req, res) => {
 
 /* ======================================================
    AUTHORITY: APPROVE / REJECT WORKER
-   ====================================================== */
+====================================================== */
 exports.updateWorkerApproval = async (req, res) => {
   try {
     const { workerId } = req.params;
@@ -36,7 +36,6 @@ exports.updateWorkerApproval = async (req, res) => {
       return res.status(404).json({ message: "Worker not found" });
     }
 
-    // ✅ FIX: no skills validation (model does not have it)
     worker.approvalStatus = status;
     await worker.save();
 
@@ -51,13 +50,16 @@ exports.updateWorkerApproval = async (req, res) => {
 
 /* ======================================================
    AUTHORITY: VIEW WORK REQUESTS FOR A COMPLAINT
-   ====================================================== */
+   🔥 POPULATES NAME + EMAIL + SKILLS
+====================================================== */
 exports.getWorkRequestsForComplaint = async (req, res) => {
   try {
     const { complaintId } = req.params;
 
-    const complaint = await Complaint.findById(complaintId)
-      .populate("workRequests.worker", "name email");
+    const complaint = await Complaint.findById(complaintId).populate(
+      "workRequests.worker",
+      "name email workerSkills approvalStatus"
+    );
 
     if (!complaint) {
       return res.status(404).json({ message: "Complaint not found" });
@@ -72,7 +74,7 @@ exports.getWorkRequestsForComplaint = async (req, res) => {
 
 /* ======================================================
    AUTHORITY: APPROVE A WORK REQUEST (ASSIGN WORKER)
-   ====================================================== */
+====================================================== */
 exports.approveWorkRequest = async (req, res) => {
   try {
     const { complaintId, workerId } = req.params;
@@ -86,6 +88,14 @@ exports.approveWorkRequest = async (req, res) => {
     if (complaint.assignedWorker) {
       return res.status(400).json({ message: "Complaint already assigned" });
     }
+
+    // Mark selected request as approved, others rejected
+    complaint.workRequests = complaint.workRequests.map((req) => {
+      if (req.worker.toString() === workerId) {
+        return { ...req.toObject(), status: "Approved" };
+      }
+      return { ...req.toObject(), status: "Rejected" };
+    });
 
     complaint.assignedWorker = workerId;
     complaint.workerStatus = "Not Started";
@@ -102,7 +112,8 @@ exports.approveWorkRequest = async (req, res) => {
 
 /* ======================================================
    AUTHORITY: DIRECT ASSIGN WORKER
-   ====================================================== */
+   🔥 DOES NOT REQUIRE A REQUEST
+====================================================== */
 exports.assignWorkerDirectly = async (req, res) => {
   try {
     const { complaintId } = req.params;
@@ -113,8 +124,16 @@ exports.assignWorkerDirectly = async (req, res) => {
       return res.status(404).json({ message: "Complaint not found" });
     }
 
+    if (complaint.assignedWorker) {
+      return res.status(400).json({ message: "Complaint already assigned" });
+    }
+
     const worker = await User.findById(workerId);
-    if (!worker || worker.role !== "worker" || worker.approvalStatus !== "Approved") {
+    if (
+      !worker ||
+      worker.role !== "worker" ||
+      worker.approvalStatus !== "Approved"
+    ) {
       return res.status(400).json({ message: "Invalid or unapproved worker" });
     }
 
@@ -133,7 +152,7 @@ exports.assignWorkerDirectly = async (req, res) => {
 
 /* ======================================================
    AUTHORITY: VERIFY & RESOLVE
-   ====================================================== */
+====================================================== */
 exports.verifyAndResolveComplaint = async (req, res) => {
   try {
     const { complaintId } = req.params;

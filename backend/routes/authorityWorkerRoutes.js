@@ -14,9 +14,9 @@ const { authenticateUser } = require("../middleware/authMiddleware");
 const { isAuthority } = require("../middleware/roleMiddleware");
 
 /* ================= AUTHORITY ROUTES ================= */
+/* 🔒 ORDER MATTERS: authenticateUser → isAuthority */
 
-// ✅ ORDER MATTERS: authenticateUser → isAuthority
-
+// 🔹 View workers waiting for approval
 router.get(
   "/workers/pending",
   authenticateUser,
@@ -24,6 +24,7 @@ router.get(
   getPendingWorkers
 );
 
+// 🔹 Approve or reject worker
 router.put(
   "/workers/:workerId/approval",
   authenticateUser,
@@ -31,6 +32,7 @@ router.put(
   updateWorkerApproval
 );
 
+// 🔹 View worker requests for a complaint
 router.get(
   "/complaints/:complaintId/requests",
   authenticateUser,
@@ -38,6 +40,7 @@ router.get(
   getWorkRequestsForComplaint
 );
 
+// 🔹 Approve a worker request (assign from requests)
 router.put(
   "/complaints/:complaintId/approve/:workerId",
   authenticateUser,
@@ -45,6 +48,7 @@ router.put(
   approveWorkRequest
 );
 
+// 🔹 Directly assign a worker (even without request)
 router.put(
   "/complaints/:complaintId/assign",
   authenticateUser,
@@ -52,6 +56,7 @@ router.put(
   assignWorkerDirectly
 );
 
+// 🔹 Verify worker proof & resolve complaint
 router.put(
   "/complaints/:complaintId/resolve",
   authenticateUser,

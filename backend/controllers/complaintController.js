@@ -102,12 +102,13 @@ exports.createComplaint = async (req, res) => {
 };
 
 /* =====================================================
-   GET COMPLAINTS
+   GET COMPLAINTS (Citizen)
 ===================================================== */
 exports.getComplaintsByUser = async (req, res) => {
   try {
-    const complaints = await Complaint.find({ userId: req.params.userId })
-      .sort({ createdAt: -1 });
+    const complaints = await Complaint.find({
+      userId: req.params.userId
+    }).sort({ createdAt: -1 });
 
     res.json(complaints);
   } catch {
@@ -115,10 +116,16 @@ exports.getComplaintsByUser = async (req, res) => {
   }
 };
 
+/* =====================================================
+   GET ALL COMPLAINTS (Authority)
+   🔥 FULL POPULATION FOR ASSIGN WORKER
+===================================================== */
 exports.getAllComplaints = async (req, res) => {
   try {
     const complaints = await Complaint.find()
       .populate("userId", "name email")
+      .populate("workRequests.worker", "name email workerSkills")
+      .populate("assignedWorker", "name email workerSkills")
       .sort({ createdAt: -1 });
 
     res.json(complaints);
@@ -182,11 +189,10 @@ exports.verifyComplaint = async (req, res) => {
 exports.getAvailableWorks = async (req, res) => {
   try {
     const complaints = await Complaint.find({
-  "authorityDecision.verified": true,
-  "status.statusName": "Submitted",
-  assignedWorker: null
-})
-
+      "authorityDecision.verified": true,
+      "status.statusName": "Submitted",
+      assignedWorker: null
+    }).sort({ createdAt: -1 });
 
     res.json(complaints);
   } catch (err) {
@@ -195,4 +201,46 @@ exports.getAvailableWorks = async (req, res) => {
   }
 };
 
+/* =====================================================
+   WORKER: REQUEST WORK (FIXED + POPULATABLE)
+===================================================== */
+exports.requestWork = async (req, res) => {
+  try {
+    const { workerId } = req.body;
 
+    const complaint = await Complaint.findById(req.params.id);
+
+    if (!complaint) {
+      return res.status(404).json({ message: "Complaint not found" });
+    }
+
+    if (complaint.assignedWorker) {
+      return res.status(400).json({
+        message: "Work already assigned"
+      });
+    }
+
+    const alreadyRequested = complaint.workRequests.some(
+      (r) => r.worker.toString() === workerId
+    );
+
+    if (alreadyRequested) {
+      return res.status(400).json({
+        message: "You already requested this work"
+      });
+    }
+
+    complaint.workRequests.push({
+      worker: workerId,
+      requestedAt: new Date(),
+      status: "Pending"
+    });
+
+    await complaint.save();
+
+    res.json({ message: "Work request sent successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to request work" });
+  }
+};

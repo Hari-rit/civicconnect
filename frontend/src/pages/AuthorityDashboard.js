@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import AssignWorkerModal from "../components/AssignWorkerModal";
 
 const ITEMS_PER_PAGE = 5;
 
@@ -9,6 +10,7 @@ function AuthorityDashboard() {
   const [viewComplaint, setViewComplaint] = useState(null);
   const [zoomMedia, setZoomMedia] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [assignComplaint, setAssignComplaint] = useState(null);
 
   const [statusFilter, setStatusFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -311,6 +313,16 @@ const openInMaps = (complaint) => {
                       View
                     </button>
                     <button className="btn btn-sm btn-outline-success"title="Open in Google Maps"onClick={() => openInMaps(c)}>Map📍</button>
+                    {c.workRequests &&
+ c.workRequests.length > 0 &&
+ !c.assignedWorker && (
+  <button
+    className="btn btn-sm btn-warning"
+    onClick={() => setAssignComplaint(c)}
+  >
+    Assign
+  </button>
+)}
 
                     <button
                       className="btn btn-sm btn-primary"
@@ -642,6 +654,19 @@ const openInMaps = (complaint) => {
     </div>
   </div>
 )}
+{/* ================= ASSIGN WORKER MODAL ================= */}
+{assignComplaint && (
+  <AssignWorkerModal
+    complaint={assignComplaint}
+    onClose={() => setAssignComplaint(null)}
+    onAssigned={() => {
+      fetchComplaints();
+      setAssignComplaint(null);
+    }}
+  />
+)}
+
+
     </div>
   );
 }

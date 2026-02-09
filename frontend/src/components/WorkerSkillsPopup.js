@@ -14,6 +14,8 @@ const WorkerSkillsPopup = ({ userId, onSaved }) => {
   const [saving, setSaving] = useState(false);
 
   const toggleSkill = (skill) => {
+    if (saving) return; // 🔒 prevent changes while saving
+
     setSelectedSkills((prev) =>
       prev.includes(skill)
         ? prev.filter((s) => s !== skill)
@@ -29,42 +31,60 @@ const WorkerSkillsPopup = ({ userId, onSaved }) => {
 
     try {
       setSaving(true);
+
       await axios.put(
         "http://localhost:5000/worker/profile",
-        { workerSkills: selectedSkills },
-        { headers: { "x-user-id": userId } }
+        {
+          workerSkills: selectedSkills,
+          skillsCompleted: true // 🔑 IMPORTANT
+        },
+        {
+          headers: { "x-user-id": userId }
+        }
       );
-      onSaved(); // tell dashboard to refresh
-    } catch {
-      alert("Failed to save skills");
+
+      // 🔒 notify dashboard ONLY after success
+      onSaved();
+    } catch (err) {
+      alert(
+        err.response?.data?.message ||
+          "Failed to save skills"
+      );
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="modal d-block" style={{ background: "rgba(0,0,0,0.6)" }}>
+    <div
+      className="modal d-block"
+      style={{ background: "rgba(0,0,0,0.6)" }}
+    >
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content p-4">
-          <h5>Select Your Skills</h5>
+          <h5 className="mb-3">Select Your Skills</h5>
 
           {ALL_SKILLS.map((skill) => (
-            <div key={skill} className="form-check">
+            <div key={skill} className="form-check mb-2">
               <input
                 type="checkbox"
                 className="form-check-input"
+                checked={selectedSkills.includes(skill)}
+                disabled={saving}
                 onChange={() => toggleSkill(skill)}
               />
-              <label className="form-check-label">{skill}</label>
+              <label className="form-check-label">
+                {skill}
+              </label>
             </div>
           ))}
 
           <button
-            className="btn btn-primary mt-3"
+            className="btn btn-primary mt-4 w-100"
             disabled={saving}
             onClick={saveSkills}
           >
-            {saving ? "Saving..." : "Save Skills"}
+            {saving ? "Saving Skills..." : "Save Skills"}
           </button>
         </div>
       </div>
