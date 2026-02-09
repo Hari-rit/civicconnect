@@ -2,11 +2,28 @@ const User = require("../models/User");
 const Complaint = require("../models/Complaint");
 
 /* ======================================================
-   WORKER: GET PROFILE (🔥 REQUIRED FOR SKILLS POPUP)
+   HELPER: EXTRACT USER ID FROM AUTH HEADER
+   Authorization: Bearer <userId>
+====================================================== */
+const getUserIdFromAuthHeader = (req) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return null;
+
+  const parts = authHeader.split(" ");
+  if (parts.length !== 2) return null;
+
+  return parts[1]; // <userId>
+};
+
+/* ======================================================
+   WORKER: GET PROFILE
 ====================================================== */
 exports.getWorkerProfile = async (req, res) => {
   try {
-    const workerId = req.headers["x-user-id"];
+    const workerId = getUserIdFromAuthHeader(req);
+    if (!workerId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
     const worker = await User.findById(workerId);
 
@@ -18,7 +35,7 @@ exports.getWorkerProfile = async (req, res) => {
       workerSkills: worker.workerSkills || [],
       approvalStatus: worker.approvalStatus
     });
-  } catch {
+  } catch (err) {
     res.status(500).json({ message: "Failed to fetch worker profile" });
   }
 };
@@ -28,9 +45,12 @@ exports.getWorkerProfile = async (req, res) => {
 ====================================================== */
 exports.updateWorkerProfile = async (req, res) => {
   try {
-    const workerId = req.headers["x-user-id"];
-    const { workerSkills } = req.body;
+    const workerId = getUserIdFromAuthHeader(req);
+    if (!workerId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
+    const { workerSkills } = req.body;
     const worker = await User.findById(workerId);
 
     if (!worker || worker.role !== "worker") {
@@ -51,7 +71,7 @@ exports.updateWorkerProfile = async (req, res) => {
       workerSkills: worker.workerSkills,
       approvalStatus: worker.approvalStatus
     });
-  } catch {
+  } catch (err) {
     res.status(500).json({ message: "Failed to update worker profile" });
   }
 };
@@ -61,15 +81,21 @@ exports.updateWorkerProfile = async (req, res) => {
 ====================================================== */
 exports.getAvailableComplaints = async (req, res) => {
   try {
-    const workerId = req.headers["x-user-id"];
+    const workerId = getUserIdFromAuthHeader(req);
+    if (!workerId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     const worker = await User.findById(workerId);
 
-    // Must be approved
+    if (!worker || worker.role !== "worker") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     if (worker.approvalStatus !== "Approved") {
       return res.json([]);
     }
 
-    // Must have skills
     if (!worker.workerSkills || worker.workerSkills.length === 0) {
       return res.json([]);
     }
@@ -82,7 +108,7 @@ exports.getAvailableComplaints = async (req, res) => {
     }).sort({ createdAt: -1 });
 
     res.json(complaints);
-  } catch {
+  } catch (err) {
     res.status(500).json({ message: "Failed to fetch available works" });
   }
 };
@@ -92,9 +118,12 @@ exports.getAvailableComplaints = async (req, res) => {
 ====================================================== */
 exports.requestComplaint = async (req, res) => {
   try {
-    const workerId = req.headers["x-user-id"];
-    const { complaintId } = req.params;
+    const workerId = getUserIdFromAuthHeader(req);
+    if (!workerId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
+    const { complaintId } = req.params;
     const worker = await User.findById(workerId);
 
     if (worker.approvalStatus !== "Approved") {
@@ -116,7 +145,7 @@ exports.requestComplaint = async (req, res) => {
     }
 
     const alreadyRequested = complaint.workRequests.some(
-      (r) => r.worker.toString() === workerId.toString()
+      (r) => r.worker.toString() === workerId
     );
 
     if (alreadyRequested) {
@@ -133,24 +162,29 @@ exports.requestComplaint = async (req, res) => {
     await complaint.save();
 
     res.json({ message: "Work request submitted successfully" });
-  } catch {
+  } catch (err) {
     res.status(500).json({ message: "Failed to request complaint" });
   }
 };
 
 /* ======================================================
-   WORKER: VIEW ASSIGNED COMPLAINTS
+   WORKER: VIEW ASSIGNED COMPLAINTS (🔥 THIS WAS THE BUG)
 ====================================================== */
 exports.getAssignedComplaints = async (req, res) => {
   try {
-    const workerId = req.headers["x-user-id"];
+    const workerId = getUserIdFromAuthHeader(req);
+    console.log("WORKER ID FROM HEADER:", workerId);
+
+    if (!workerId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
     const complaints = await Complaint.find({
       assignedWorker: workerId
     }).sort({ createdAt: -1 });
 
     res.json(complaints);
-  } catch {
+  } catch (err) {
     res.status(500).json({ message: "Failed to fetch assigned complaints" });
   }
 };
@@ -160,7 +194,11 @@ exports.getAssignedComplaints = async (req, res) => {
 ====================================================== */
 exports.updateWorkStatus = async (req, res) => {
   try {
-    const workerId = req.headers["x-user-id"];
+    const workerId = getUserIdFromAuthHeader(req);
+    if (!workerId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     const { complaintId } = req.params;
     const { workerStatus } = req.body;
 
@@ -194,7 +232,7 @@ exports.updateWorkStatus = async (req, res) => {
     await complaint.save();
 
     res.json({ message: "Worker status updated successfully" });
-  } catch {
+  } catch (err) {
     res.status(500).json({ message: "Failed to update work status" });
   }
 };
@@ -204,7 +242,11 @@ exports.updateWorkStatus = async (req, res) => {
 ====================================================== */
 exports.uploadWorkProof = async (req, res) => {
   try {
-    const workerId = req.headers["x-user-id"];
+    const workerId = getUserIdFromAuthHeader(req);
+    if (!workerId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     const { complaintId } = req.params;
 
     if (!req.file) {
@@ -232,7 +274,7 @@ exports.uploadWorkProof = async (req, res) => {
     await complaint.save();
 
     res.json({ message: "Work proof uploaded successfully" });
-  } catch {
+  } catch (err) {
     res.status(500).json({ message: "Failed to upload work proof" });
   }
 };

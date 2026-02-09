@@ -1,3 +1,4 @@
+import "./WorkerDashboard.css";
 import React, {
   useEffect,
   useState,
@@ -8,15 +9,21 @@ import axios from "axios";
 import WorkerSkillsPopup from "../components/WorkerSkillsPopup";
 import WorkerNavbar from "../components/WorkerNavbar";
 
+const API = "http://localhost:5000/worker";
+
 const WorkerDashboard = () => {
   const user = JSON.parse(localStorage.getItem("user"));
 
+  /* ================= GLOBAL UI STATE ================= */
   const [activeTab, setActiveTab] = useState("assigned");
+
+  // ✅ Image modal state (FIXED – inside component)
+  const [selectedImage, setSelectedImage] = useState(null);
 
   /* ================= SKILLS / ONBOARDING ================= */
   const [showSkillsPopup, setShowSkillsPopup] = useState(false);
-  const [profileLoaded, setProfileLoaded] = useState(false); // 🔑 NEW
-  const [skillsLocked, setSkillsLocked] = useState(false);   // 🔑 NEW
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [skillsLocked, setSkillsLocked] = useState(false);
 
   /* ================= ASSIGNED WORKS ================= */
   const [complaints, setComplaints] = useState([]);
@@ -37,8 +44,8 @@ const WorkerDashboard = () => {
   const fetchWorkerProfile = useCallback(async () => {
     try {
       const res = await axios.get(
-        "http://localhost:5000/worker/profile",
-        { headers: { "x-user-id": user?.id } }
+        `${API}/profile`,
+        { headers: { Authorization: `Bearer ${user?.id}` } }
       );
 
       const skills = Array.isArray(res.data.workerSkills)
@@ -70,7 +77,8 @@ const WorkerDashboard = () => {
       setLoadingComplaints(true);
 
       const res = await axios.get(
-        `http://localhost:5000/complaints/user/${user?.id}`
+        `${API}/complaints`,
+        { headers: { Authorization: `Bearer ${user?.id}` } }
       );
 
       setComplaints(res.data || []);
@@ -91,7 +99,8 @@ const WorkerDashboard = () => {
       setLoadingAvailable(true);
 
       const res = await axios.get(
-        "http://localhost:5000/complaints/available"
+        `${API}/available-complaints`,
+        { headers: { Authorization: `Bearer ${user?.id}` } }
       );
 
       const filtered = (res.data || []).filter(
@@ -106,7 +115,7 @@ const WorkerDashboard = () => {
     } finally {
       setLoadingAvailable(false);
     }
-  }, []);
+  }, [user]);
 
   /* ================= INITIAL LOAD ================= */
   useEffect(() => {
@@ -114,7 +123,7 @@ const WorkerDashboard = () => {
     fetchAssignedComplaints();
   }, [fetchWorkerProfile, fetchAssignedComplaints]);
 
-  /* ================= TAB-BASED FETCH ================= */
+  /* ================= TAB CHANGE ================= */
   useEffect(() => {
     if (activeTab === "available") {
       fetchAvailableWorks();
@@ -127,8 +136,9 @@ const WorkerDashboard = () => {
       setRequestingId(complaintId);
 
       await axios.post(
-        `http://localhost:5000/complaints/${complaintId}/request`,
-        { workerId: user.id }
+        `${API}/complaints/${complaintId}/request`,
+        {},
+        { headers: { Authorization: `Bearer ${user?.id}` } }
       );
 
       setAvailableWorks((prev) =>
@@ -147,11 +157,12 @@ const WorkerDashboard = () => {
   };
 
   /* ================= UPDATE WORK STATUS ================= */
-  const updateStatus = async (id, statusName) => {
+  const updateStatus = async (id, workerStatus) => {
     try {
       await axios.put(
-        `http://localhost:5000/complaints/${id}/status`,
-        { statusName }
+        `${API}/complaints/${id}/status`,
+        { workerStatus },
+        { headers: { Authorization: `Bearer ${user?.id}` } }
       );
 
       assignedFetchOnce.current = false;
@@ -164,15 +175,15 @@ const WorkerDashboard = () => {
 
   /* ================= UI ================= */
   return (
-    <div className="container mt-4">
+    <div className="container mt-4 worker-dashboard">
       <h3>Worker Dashboard</h3>
 
-      {/* 🔒 SKILL POPUP (FIXED) */}
+      {/* 🔒 SKILLS POPUP */}
       {profileLoaded && showSkillsPopup && (
         <WorkerSkillsPopup
           userId={user.id}
           onSaved={() => {
-            setSkillsLocked(true);     // 🔒 lock forever
+            setSkillsLocked(true);
             setShowSkillsPopup(false);
             fetchWorkerProfile();
           }}
@@ -198,23 +209,106 @@ const WorkerDashboard = () => {
             )}
 
           {complaints.map((c) => (
-            <div key={c._id} className="card p-3 mb-3">
-              <strong className="text-capitalize">
-                {c.location?.area}
-              </strong>
-              <p>Status: {c.status?.statusName}</p>
+            <div key={c._id} className="worker-card">
 
-              <select
-                className="form-select"
-                value={c.status?.statusName}
-                onChange={(e) =>
-                  updateStatus(c._id, e.target.value)
-                }
-              >
-                <option value="Submitted">Submitted</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Resolved">Resolved</option>
-              </select>
+              {/* ===== IMAGE PREVIEW (SMALL) ===== */}
+              {c.media?.path && (
+                <div
+                  className="image-preview"
+                  onClick={() =>
+                    setSelectedImage(
+                      `http://localhost:5000${c.media.path}`
+                    )
+                  }
+                >
+                  <img
+                    src={`http://localhost:5000${c.media.path}`}
+                    alt="complaint"
+                  />
+                  <span className="view-text">
+                    Click to view
+                  </span>
+                </div>
+              )}
+
+              {/* ===== HEADER ===== */}
+              <div className="worker-card-header">
+                <h5 className="area-title">
+                  {c.location?.area || "Unknown Area"}
+                </h5>
+
+                <span
+                  className={`status-badge ${c.workerStatus
+                    .replace(" ", "-")
+                    .toLowerCase()}`}
+                >
+                  {c.workerStatus}
+                </span>
+              </div>
+
+              {/* ===== DETAILS ===== */}
+              <div className="worker-details">
+                <p>
+                  <strong>Category:</strong>{" "}
+                  {c.authorityDecision?.category || "N/A"}
+                </p>
+
+                <p>
+                  <strong>Priority:</strong>{" "}
+                  {c.authorityDecision?.priority || "N/A"}
+                </p>
+
+                {c.location?.address && (
+                  <p>
+                    <strong>Address:</strong>{" "}
+                    {c.location.address}
+                  </p>
+                )}
+              </div>
+
+              {/* ===== MAP ===== */}
+              {c.location?.latitude &&
+                c.location?.longitude && (
+                  <div className="map-container">
+                    <iframe
+                      title="location-map"
+                      width="100%"
+                      height="200"
+                      style={{
+                        borderRadius: "12px",
+                        border: "none"
+                      }}
+                      loading="lazy"
+                      allowFullScreen
+                      src={`https://www.google.com/maps?q=${c.location.latitude},${c.location.longitude}&z=15&output=embed`}
+                    />
+                  </div>
+                )}
+
+              {/* ===== STATUS UPDATE ===== */}
+              <div className="worker-card-body">
+                <p className="label">
+                  Update Work Status
+                </p>
+
+                <select
+                  className="form-select status-select"
+                  value={c.workerStatus}
+                  onChange={(e) =>
+                    updateStatus(c._id, e.target.value)
+                  }
+                >
+                  <option value="Not Started">
+                    Not Started
+                  </option>
+                  <option value="In Progress">
+                    In Progress
+                  </option>
+                  <option value="Work Completed">
+                    Work Completed
+                  </option>
+                </select>
+              </div>
             </div>
           ))}
         </>
@@ -233,7 +327,10 @@ const WorkerDashboard = () => {
             )}
 
           {availableWorks.map((c) => (
-            <div key={c._id} className="card mb-4 shadow-sm">
+            <div
+              key={c._id}
+              className="card mb-4 shadow-sm"
+            >
               {c.media?.path && (
                 <img
                   src={`http://localhost:5000${c.media.path}`}
@@ -268,7 +365,9 @@ const WorkerDashboard = () => {
 
                 <p className="text-muted">
                   Submitted on{" "}
-                  {new Date(c.createdAt).toLocaleDateString()}
+                  {new Date(
+                    c.createdAt
+                  ).toLocaleDateString()}
                 </p>
 
                 <button
@@ -278,7 +377,9 @@ const WorkerDashboard = () => {
                       : "btn-outline-primary"
                   } w-100`}
                   disabled={requestingId === c._id}
-                  onClick={() => requestWork(c._id)}
+                  onClick={() =>
+                    requestWork(c._id)
+                  }
                 >
                   {requestingId === c._id
                     ? "Requesting..."
@@ -288,6 +389,21 @@ const WorkerDashboard = () => {
             </div>
           ))}
         </>
+      )}
+
+      {/* ================= IMAGE MODAL ================= */}
+      {selectedImage && (
+        <div
+          className="image-modal"
+          onClick={() =>
+            setSelectedImage(null)
+          }
+        >
+          <img
+            src={selectedImage}
+            alt="Full View"
+          />
+        </div>
       )}
     </div>
   );
