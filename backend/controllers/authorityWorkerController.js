@@ -151,6 +151,24 @@ exports.assignWorkerDirectly = async (req, res) => {
 };
 
 /* ======================================================
+   AUTHORITY: GET ALL APPROVED WORKERS
+   🔥 REQUIRED FOR DIRECT ASSIGN MODAL
+====================================================== */
+exports.getApprovedWorkers = async (req, res) => {
+  try {
+    const workers = await User.find({
+      role: "worker",
+      approvalStatus: "Approved"
+    }).select("name email workerSkills");
+
+    res.json(workers);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Failed to fetch workers" });
+  }
+};
+
+/* ======================================================
    AUTHORITY: VERIFY & RESOLVE
 ====================================================== */
 exports.verifyAndResolveComplaint = async (req, res) => {

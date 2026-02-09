@@ -1,3 +1,4 @@
+
 const express = require("express");
 const router = express.Router();
 
@@ -7,7 +8,8 @@ const {
   getWorkRequestsForComplaint,
   approveWorkRequest,
   assignWorkerDirectly,
-  verifyAndResolveComplaint
+  verifyAndResolveComplaint,
+  getApprovedWorkers // 🔥 NEW
 } = require("../controllers/authorityWorkerController");
 
 const { authenticateUser } = require("../middleware/authMiddleware");
@@ -22,6 +24,14 @@ router.get(
   authenticateUser,
   isAuthority,
   getPendingWorkers
+);
+
+// 🔹 View all approved workers (🔥 for Direct Assign)
+router.get(
+  "/workers/approved",
+  authenticateUser,
+  isAuthority,
+  getApprovedWorkers
 );
 
 // 🔹 Approve or reject worker

@@ -313,9 +313,7 @@ const openInMaps = (complaint) => {
                       View
                     </button>
                     <button className="btn btn-sm btn-outline-success"title="Open in Google Maps"onClick={() => openInMaps(c)}>Map📍</button>
-                    {c.workRequests &&
- c.workRequests.length > 0 &&
- !c.assignedWorker && (
+                    {c.status?.statusName === "Submitted" && (
   <button
     className="btn btn-sm btn-warning"
     onClick={() => setAssignComplaint(c)}
@@ -323,6 +321,8 @@ const openInMaps = (complaint) => {
     Assign
   </button>
 )}
+
+
 
                     <button
                       className="btn btn-sm btn-primary"
@@ -389,11 +389,10 @@ const openInMaps = (complaint) => {
       style={{
         width: "720px",
         maxWidth: "95%",
-        height: "90vh",          // 🔒 FIXED HEIGHT
-        overflowY: "auto"        // 🔥 ENABLE SCROLL
+        height: "90vh",
+        overflowY: "auto"
       }}
     >
-      {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-2">
         <h5 className="mb-0">Complaint Details</h5>
         <button
@@ -402,22 +401,19 @@ const openInMaps = (complaint) => {
         />
       </div>
 
-      {/* Image (LOCKED SIZE) */}
       <img
         src={`http://localhost:5000${viewComplaint.media.path}`}
         alt="complaint"
         style={{
           width: "100%",
-          maxHeight: "40vh",      // 🔒 IMAGE CONSTRAINT
+          maxHeight: "40vh",
           objectFit: "contain",
           marginBottom: "12px"
         }}
       />
 
-      {/* Content */}
       <p>
-        <strong>Location:</strong>{" "}
-        {viewComplaint.location.area}
+        <strong>Location:</strong> {viewComplaint.location.area}
       </p>
 
       <button
@@ -428,16 +424,44 @@ const openInMaps = (complaint) => {
       </button>
 
       <p>
-        <strong>Status:</strong>{" "}
-        {viewComplaint.status.statusName}
+        <strong>Status:</strong> {viewComplaint.status.statusName}
       </p>
 
       <p>
-        <strong>AI:</strong>{" "}
-        {viewComplaint.aiPrediction?.issueType}
+        <strong>AI:</strong> {viewComplaint.aiPrediction?.issueType}
       </p>
 
-      {/* Footer */}
+      {viewComplaint.assignedWorker && (
+        <>
+          <hr />
+          <h6 className="fw-bold">Assigned Worker</h6>
+
+          <p className="mb-1">
+            <strong>Name:</strong> {viewComplaint.assignedWorker.name}
+          </p>
+
+          <p className="mb-1">
+            <strong>Email:</strong> {viewComplaint.assignedWorker.email}
+          </p>
+
+          <div className="mt-1">
+            <strong>Skills:</strong>{" "}
+            {viewComplaint.assignedWorker.workerSkills?.length > 0 ? (
+              viewComplaint.assignedWorker.workerSkills.map((skill) => (
+                <span
+                  key={skill}
+                  className="badge bg-info text-dark me-1"
+                >
+                  {skill}
+                </span>
+              ))
+            ) : (
+              <span className="text-muted">No skills listed</span>
+            )}
+          </div>
+        </>
+      )}
+
       <button
         className="btn btn-secondary w-100 mt-3"
         onClick={() => setViewComplaint(null)}
@@ -448,38 +472,71 @@ const openInMaps = (complaint) => {
   </div>
 )}
 
+
       {/* ================= REVIEW MODAL ================= */}
-      {reviewComplaint && (
-        <div
-          className="position-fixed top-0 start-0 w-100 h-100"
-          style={{ background: "rgba(0,0,0,0.6)", zIndex: 1050 }}
-        >
-          <div className="d-flex justify-content-center align-items-center h-100">
-            <div
-  className="card d-flex flex-column"
-  style={{
-    width: "720px",
-    maxHeight: "90vh"
-  }}
->
+{reviewComplaint && (
+  <div
+    className="position-fixed top-0 start-0 w-100 h-100"
+    style={{ background: "rgba(0,0,0,0.6)", zIndex: 1050 }}
+  >
+    <div className="d-flex justify-content-center align-items-center h-100">
+      <div
+        className="card d-flex flex-column"
+        style={{
+          width: "720px",
+          maxHeight: "90vh",
+          overflowY: "auto"
+        }}
+      >
+        <div className="d-flex justify-content-between mb-3">
+          <h5>Review Complaint</h5>
+          <button
+            className="btn-close"
+            onClick={() => setReviewComplaint(null)}
+          />
+        </div>
 
-              <div className="d-flex justify-content-between mb-3">
-                <h5>Review Complaint</h5>
-                <button
-                  className="btn-close"
-                  onClick={() => setReviewComplaint(null)}
-                />
-              </div>
+        <img
+          src={`http://localhost:5000${reviewComplaint.media.path}`}
+          alt="complaint"
+          className="img-fluid rounded mb-3"
+          style={{
+            maxHeight: "45vh",
+            objectFit: "contain"
+          }}
+        />
 
-              <img
-  src={`http://localhost:5000${reviewComplaint.media.path}`}
-  alt="complaint"
-  className="img-fluid rounded mb-3"
-  style={{
-    maxHeight: "45vh",
-    objectFit: "contain"
-  }}
-/>
+        {reviewComplaint.assignedWorker && (
+          <>
+            <hr />
+            <h6 className="fw-bold">Assigned Worker</h6>
+
+            <p className="mb-1">
+              <strong>Name:</strong> {reviewComplaint.assignedWorker.name}
+            </p>
+
+            <p className="mb-1">
+              <strong>Email:</strong> {reviewComplaint.assignedWorker.email}
+            </p>
+
+            <div className="mt-1">
+              <strong>Skills:</strong>{" "}
+              {reviewComplaint.assignedWorker.workerSkills?.length > 0 ? (
+                reviewComplaint.assignedWorker.workerSkills.map((skill) => (
+                  <span
+                    key={skill}
+                    className="badge bg-info text-dark me-1"
+                  >
+                    {skill}
+                  </span>
+                ))
+              ) : (
+                <span className="text-muted">No skills listed</span>
+              )}
+            </div>
+          </>
+        )}
+
 {/* ================= WORKER PROOF ================= */}
 {reviewComplaint.workerProofImage ? (
   <div className="mt-3">
