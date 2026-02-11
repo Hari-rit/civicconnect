@@ -62,20 +62,6 @@ const handleVerify = async () => {
     setReviewComplaint(null);
   };
 
-  /* ================= WORKER PROOF VERIFY & RESOLVE ================= */
-
-const handleVerifyAndResolve = async (complaintId) => {
-  try {
-    await axios.put(
-      `http://localhost:5000/authority/complaints/${complaintId}/resolve`
-    );
-    alert("Complaint resolved successfully.");
-    fetchComplaints();
-    setReviewComplaint(null);
-  } catch (error) {
-    alert("Cannot resolve complaint. Worker proof may be missing.");
-  }
-};
 
   /* ================= HELPERS ================= */
 
@@ -459,6 +445,25 @@ const openInMaps = (complaint) => {
               <span className="text-muted">No skills listed</span>
             )}
           </div>
+          <div className="mt-2">
+  <strong>Worker Status:</strong>{" "}
+  {viewComplaint.workerStatus ? (
+    <span
+      className={`badge ms-1 ${
+        viewComplaint.workerStatus === "Work Completed"
+          ? "bg-success"
+          : viewComplaint.workerStatus === "In Progress"
+          ? "bg-warning text-dark"
+          : "bg-secondary"
+      }`}
+    >
+      {viewComplaint.workerStatus}
+    </span>
+  ) : (
+    <span className="text-muted">Not Assigned</span>
+  )}
+</div>
+
         </>
       )}
 
@@ -534,6 +539,25 @@ const openInMaps = (complaint) => {
                 <span className="text-muted">No skills listed</span>
               )}
             </div>
+            <div className="mt-2">
+  <strong>Worker Status:</strong>{" "}
+  {reviewComplaint.workerStatus ? (
+    <span
+      className={`badge ms-1 ${
+        reviewComplaint.workerStatus === "Work Completed"
+          ? "bg-success"
+          : reviewComplaint.workerStatus === "In Progress"
+          ? "bg-warning text-dark"
+          : "bg-secondary"
+      }`}
+    >
+      {reviewComplaint.workerStatus}
+    </span>
+  ) : (
+    <span className="text-muted">Not Assigned</span>
+  )}
+</div>
+
           </>
         )}
 
@@ -544,8 +568,11 @@ const openInMaps = (complaint) => {
     <img
       src={`http://localhost:5000/${reviewComplaint.workerProofImage}`}
       alt="Worker Proof"
-      className="img-fluid rounded"
-      style={{ maxHeight: "40vh", objectFit: "contain" }}
+      className="rounded w-100"
+      style={{
+        maxHeight: "500px",
+        objectFit: "cover"
+      }}
     />
   </div>
 ) : (
@@ -553,6 +580,7 @@ const openInMaps = (complaint) => {
     No completion proof uploaded by worker.
   </p>
 )}
+
 
 
               {!reviewComplaint.authorityDecision.verified && (
@@ -648,18 +676,7 @@ const openInMaps = (complaint) => {
   Update Status
 </button>
 
-{reviewComplaint.workerStatus === "Work Completed" &&
-  reviewComplaint.workerProofImage && (
-    <button
-      className="btn btn-success btn-sm"
-      style={{ minWidth: "200px", height: "36px" }}
-      onClick={() =>
-        handleVerifyAndResolve(reviewComplaint._id)
-      }
-    >
-      Verify Proof & Resolve
-    </button>
-)}
+
 
 </div>
 

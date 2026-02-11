@@ -173,7 +173,6 @@ exports.requestComplaint = async (req, res) => {
 exports.getAssignedComplaints = async (req, res) => {
   try {
     const workerId = getUserIdFromAuthHeader(req);
-    console.log("WORKER ID FROM HEADER:", workerId);
 
     if (!workerId) {
       return res.status(401).json({ message: "Unauthorized" });

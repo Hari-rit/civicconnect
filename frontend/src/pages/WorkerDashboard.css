@@ -110,6 +110,7 @@
 .nav-tabs {
   margin-bottom: 24px;
 }
+
 /* ================= IMAGE PREVIEW (INSIDE CARD) ================= */
 
 .image-preview {
@@ -120,12 +121,13 @@
 
 .image-preview img {
   width: 100%;
-  height: 180px;                 /* ✅ FIX: smaller image */
+  height: 180px;
   object-fit: cover;
   border-radius: 12px;
 }
 
 /* View label overlay */
+
 .image-preview .view-text {
   position: absolute;
   bottom: 10px;
@@ -140,7 +142,7 @@
 /* ================= IMAGE MODAL (FULL VIEW) ================= */
 
 .image-modal {
-  position: fixed;               /* 🔥 KEY FIX */
+  position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.85);
   z-index: 9999;
@@ -152,9 +154,66 @@
   cursor: zoom-out;
 }
 
+/* 🔥 FIXED SIZE HERE ONLY */
+
 .image-modal img {
-  max-width: 90%;
-  max-height: 85%;
-  border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  width: 90vw;          /* Bigger width */
+  height: auto;
+  max-height: 90vh;     /* Prevent overflow */
+  object-fit: contain;
+  border-radius: 16px;
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.7);
+}
+
+/* ================= PROOF SECTION ================= */
+
+.proof-section {
+  margin-top: 20px;
+}
+
+.proof-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 8px;
+}
+
+.proof-upload-box {
+  height: 160px;
+  border: 2px dashed #0d6efd;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #f8fbff;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.proof-upload-box:hover {
+  background: #eaf3ff;
+}
+
+.proof-image-wrapper {
+  position: relative;
+  cursor: pointer;
+}
+
+.proof-image {
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.proof-image-wrapper .view-text {
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 6px;
 }

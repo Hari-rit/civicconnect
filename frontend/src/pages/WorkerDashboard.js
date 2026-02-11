@@ -16,6 +16,8 @@ const WorkerDashboard = () => {
 
   /* ================= GLOBAL UI STATE ================= */
   const [activeTab, setActiveTab] = useState("assigned");
+  const [selectedProof, setSelectedProof] = useState(null);
+  const [uploadingProofId, setUploadingProofId] = useState(null);
 
   // ✅ Image modal state (FIXED – inside component)
   const [selectedImage, setSelectedImage] = useState(null);
@@ -172,6 +174,41 @@ const WorkerDashboard = () => {
       alert("Failed to update work status");
     }
   };
+  /* ================= work proof upload ================= */
+const uploadProof = async (complaintId) => {
+  if (!selectedProof) {
+    alert("Please select an image first");
+    return;
+  }
+
+  try {
+    setUploadingProofId(complaintId);
+
+    const formData = new FormData();
+    formData.append("proof", selectedProof);
+
+    await axios.post(
+      `${API}/complaints/${complaintId}/proof`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${user?.id}`,
+          "Content-Type": "multipart/form-data"
+        }
+      }
+    );
+
+    alert("Proof uploaded successfully");
+
+    setSelectedProof(null);
+    assignedFetchOnce.current = false;
+    fetchAssignedComplaints();
+  } catch (err) {
+    alert(err.response?.data?.message || "Upload failed");
+  } finally {
+    setUploadingProofId(null);
+  }
+};
 
   /* ================= UI ================= */
   return (
@@ -309,6 +346,79 @@ const WorkerDashboard = () => {
                   </option>
                 </select>
               </div>
+              {/* ===== PROOF UPLOAD SECTION ===== */}
+{c.workerStatus === "Work Completed" && (
+  <div className="proof-section">
+
+    {c.workerProofImage ? (
+      <div className="proof-preview">
+        <p className="proof-label">Proof Uploaded</p>
+
+        <div
+          className="proof-image-wrapper"
+          onClick={() =>
+            setSelectedImage(
+              `http://localhost:5000/${c.workerProofImage}`
+            )
+          }
+        >
+          <img
+            src={`http://localhost:5000/${c.workerProofImage}`}
+            alt="proof"
+            className="proof-image"
+          />
+          <span className="view-text">Click to view</span>
+        </div>
+      </div>
+    ) : (
+      <>
+        <p className="proof-label">Upload Work Proof</p>
+
+        <div
+          className="proof-upload-box"
+          onClick={() =>
+            document.getElementById(
+              `proof-input-${c._id}`
+            ).click()
+          }
+        >
+          {selectedProof ? (
+            <img
+              src={URL.createObjectURL(selectedProof)}
+              alt="preview"
+              className="proof-image"
+            />
+          ) : (
+            <span>Click to select image</span>
+          )}
+        </div>
+
+        <input
+          type="file"
+          id={`proof-input-${c._id}`}
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={(e) =>
+            setSelectedProof(e.target.files[0])
+          }
+        />
+
+        {selectedProof && (
+          <button
+            className="btn btn-success w-100 mt-2"
+            disabled={uploadingProofId === c._id}
+            onClick={() => uploadProof(c._id)}
+          >
+            {uploadingProofId === c._id
+              ? "Uploading..."
+              : "Upload Proof"}
+          </button>
+        )}
+      </>
+    )}
+  </div>
+)}
+
             </div>
           ))}
         </>
