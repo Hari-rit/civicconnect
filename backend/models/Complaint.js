@@ -35,11 +35,27 @@ const ComplaintSchema = new mongoose.Schema(
       }
     },
 
-    /* ================= AI ================= */
-    aiPrediction: {
-      issueType: { type: String, default: "unknown" },
-      confidence: { type: Number, default: null }
-    },
+/* ================= AI ANALYSIS ================= */
+caption: {
+  type: String,
+  default: ""
+},
+
+issueType: {
+  type: String,
+  default: "Pending Review"
+},
+
+similarityScore: {
+  type: Number,
+  default: 0
+},
+
+priority: {
+  type: String,
+  enum: ["Low", "Medium", "High"],
+  default: "Low"
+},
 
     /* ================= AUTHORITY ================= */
     authorityDecision: {

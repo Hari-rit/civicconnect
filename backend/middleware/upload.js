@@ -17,7 +17,7 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     if (
       file.mimetype.startsWith("image") ||
-      file.mimetype.startsWith("video")
+      file.mimetype.startsWith("video") 
     ) {
       cb(null, true);
     } else {

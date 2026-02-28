@@ -8,6 +8,71 @@ const exifParser = require("exif-parser");
 /* =====================================================
    CREATE COMPLAINT (Citizen)
 ===================================================== */
+const natural = require("natural");
+const tokenizer = new natural.WordTokenizer();
+const TfIdf = natural.TfIdf;
+
+const ISSUE_REFERENCE = {
+  "Pothole": "pothole deep hole road surface crack damaged asphalt cavity",
+  "Road Damage": "broken road uneven pavement collapsed surface crack",
+  "Garbage Dumping": "garbage trash waste litter dumped pile roadside dirty",
+  "Drain Blockage": "blocked drain clogged drainage stagnant water overflow",
+  "Water Leakage": "water leak leaking pipe burst pipeline flowing water",
+  "Sewage Overflow": "sewage overflow dirty wastewater bad smell drain",
+  "Streetlight Failure": "streetlight not working no light broken lamp post",
+  "Electrical Hazard": "exposed wire electric pole sparking dangerous electricity",
+  "Damaged Road Sign": "broken road sign bent signboard missing signage",
+  "Traffic Signal Issue": "traffic signal not working red light malfunction junction",
+  "Fallen Tree": "fallen tree blocking road obstruction storm damage",
+  "Stray Animals": "stray dog cattle animal road obstruction traffic hazard",
+  "Construction Debris": "construction waste debris sand bricks rubble road blockage",
+  "Open Manhole": "open manhole uncovered drain open pit dangerous hole",
+  "Road Accident": "road accident vehicle collision crash damaged vehicle obstruction"
+};
+
+function classifyIssue(caption) {
+  const tfidf = new TfIdf();
+  const documents = [caption];
+
+  Object.values(ISSUE_REFERENCE).forEach(desc => {
+    documents.push(desc);
+  });
+
+  documents.forEach(doc => tfidf.addDocument(doc));
+
+  let highestScore = 0;
+  let detectedIssue = "Pending Review";
+
+  Object.keys(ISSUE_REFERENCE).forEach((issue, index) => {
+    const score = tfidf.tfidf(ISSUE_REFERENCE[issue], 0);
+    if (score > highestScore) {
+      highestScore = score;
+      detectedIssue = issue;
+    }
+  });
+
+  return { issueType: detectedIssue, similarityScore: highestScore };
+}
+
+function detectPriority(caption) {
+  caption = caption.toLowerCase();
+
+  if (
+    caption.includes("hospital") ||
+    caption.includes("school") ||
+    caption.includes("main road") ||
+    caption.includes("highway")
+  ) {
+    return "High";
+  }
+
+  if (caption.includes("residential") || caption.includes("market")) {
+    return "Medium";
+  }
+
+  return "Low";
+}
+
 exports.createComplaint = async (req, res) => {
   try {
     if (!req.file) {
@@ -18,8 +83,10 @@ exports.createComplaint = async (req, res) => {
       ? "video"
       : "image";
 
+    let caption = "";
     let issueType = "Pending Review";
-    let confidence = null;
+    let similarityScore = 0;
+    let priority = "Low";
 
     let locationData = {
       area: req.body.area || "Not provided",
@@ -30,14 +97,12 @@ exports.createComplaint = async (req, res) => {
       source: "MANUAL"
     };
 
-    /* DEVICE GPS (TOP PRIORITY) */
     if (req.body.latitude && req.body.longitude) {
       locationData.latitude = Number(req.body.latitude);
       locationData.longitude = Number(req.body.longitude);
       locationData.source = "DEVICE";
     }
 
-    /* ML + EXIF */
     if (mediaType === "image") {
       try {
         const form = new FormData();
@@ -47,31 +112,21 @@ exports.createComplaint = async (req, res) => {
         );
 
         const mlResponse = await axios.post(
-          "http://127.0.0.1:5001/predict",
+          "http://127.0.0.1:5001/generate-caption",
           form,
-          { headers: form.getHeaders(), timeout: 10000 }
+          { headers: form.getHeaders(), timeout: 20000 }
         );
 
-        issueType = mlResponse.data.issueType;
-        confidence = mlResponse.data.confidence;
-      } catch {
-        // ML failure should not block complaint creation
-      }
+        caption = mlResponse.data.caption;
 
-      /* EXIF fallback */
-      if (!locationData.latitude) {
-        try {
-          const imageBuffer = fs.readFileSync(
-            path.join(__dirname, "..", req.file.path)
-          );
-          const result = exifParser.create(imageBuffer).parse();
+        const classification = classifyIssue(caption);
+        issueType = classification.issueType;
+        similarityScore = classification.similarityScore;
 
-          if (result.tags?.GPSLatitude && result.tags?.GPSLongitude) {
-            locationData.latitude = result.tags.GPSLatitude;
-            locationData.longitude = result.tags.GPSLongitude;
-            locationData.source = "EXIF";
-          }
-        } catch {}
+        priority = detectPriority(caption);
+
+      } catch (err) {
+        console.log("Caption generation failed:", err.message);
       }
     }
 
@@ -82,19 +137,22 @@ exports.createComplaint = async (req, res) => {
         type: mediaType,
         path: `/uploads/${req.file.filename}`
       },
-      aiPrediction: { issueType, confidence },
-      authorityDecision: {
-        category: "Pending",
-        priority: "Pending",
-        verified: false
-      },
+      caption,
+      issueType,
+      similarityScore,
+      priority,
       status: {
         statusName: "Submitted"
       }
     });
 
     await complaint.save();
-    res.status(201).json({ message: "Complaint submitted", complaint });
+
+    res.status(201).json({
+      message: "Complaint submitted",
+      complaint
+    });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Upload failed" });

@@ -1,82 +1,36 @@
 from flask import Flask, request, jsonify
-import tensorflow as tf
-import numpy as np
-import cv2
+from transformers import BlipProcessor, BlipForConditionalGeneration
+from PIL import Image
+import torch
 import os
 
-from tensorflow.keras.applications import MobileNetV2
-from tensorflow.keras import layers, models
-
 # -------------------------------
-# Flask app initialization
+# Flask App Initialization
 # -------------------------------
 app = Flask(__name__)
 
-# Create uploads folder if not exists
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # -------------------------------
-# Class names (same as training)
+# Load Pretrained BLIP Model
 # -------------------------------
-CLASS_NAMES = [
-    "potholes_and_roadcracks",
-    "damaged_roadsigns",
-    "garbage",
-    "damaged_electrical_poles",
-    "water_leakage"
-]
+print("🔄 Loading BLIP caption model...")
 
-IMAGE_SIZE = (224, 224)
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
-# -------------------------------
-# Rebuild model architecture
-# -------------------------------
-base_model = MobileNetV2(
-    input_shape=(224, 224, 3),
-    include_top=False,
-    weights="imagenet"
-)
+processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+model = BlipForConditionalGeneration.from_pretrained(
+    "Salesforce/blip-image-captioning-base"
+).to(device)
 
-base_model.trainable = False
-
-model = models.Sequential([
-    base_model,
-    layers.GlobalAveragePooling2D(),
-    layers.Dense(128, activation="relu"),
-    layers.Dropout(0.5),
-    layers.Dense(len(CLASS_NAMES), activation="softmax")
-])
+print("✅ BLIP model loaded successfully")
 
 # -------------------------------
-# Load trained weights
+# Caption Generation Endpoint
 # -------------------------------
-model.load_weights(
-    "model/civicconnect_mobilenetv2_model_v2.keras"
-)
-
-print("✅ Model architecture rebuilt and weights loaded successfully")
-
-# -------------------------------
-# Image preprocessing function
-# -------------------------------
-def preprocess_image(image_path):
-    image = cv2.imread(image_path)
-
-    if image is None:
-        raise ValueError("Invalid image file")
-
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    image = cv2.resize(image, IMAGE_SIZE)
-    image = tf.keras.applications.mobilenet_v2.preprocess_input(image)
-    image = np.expand_dims(image, axis=0)
-    return image
-
-# -------------------------------
-# Prediction endpoint
-# -------------------------------
-@app.route("/predict", methods=["POST"])
-def predict():
+@app.route("/generate-caption", methods=["POST"])
+def generate_caption():
     if "image" not in request.files:
         return jsonify({"error": "No image provided"}), 400
 
@@ -85,22 +39,23 @@ def predict():
     file.save(file_path)
 
     try:
-        image = preprocess_image(file_path)
-        predictions = model.predict(image)
+        image = Image.open(file_path).convert("RGB")
 
-        class_index = int(np.argmax(predictions))
-        confidence = float(np.max(predictions))
+        inputs = processor(image, return_tensors="pt").to(device)
+        output = model.generate(**inputs)
+
+        caption = processor.decode(output[0], skip_special_tokens=True)
 
         return jsonify({
-            "issueType": CLASS_NAMES[class_index],
-            "confidence": confidence
+            "caption": caption
         })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 # -------------------------------
-# Run server
+# Run Server
 # -------------------------------
 if __name__ == "__main__":
     app.run(port=5001, debug=False)
