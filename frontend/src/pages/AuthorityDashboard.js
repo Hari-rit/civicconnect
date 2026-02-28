@@ -98,9 +98,9 @@ const handleVerify = async () => {
       statusFilter === "All" ||
       c.status.statusName === statusFilter;
 
-    const categoryOk =
-      categoryFilter === "All" ||
-      c.authorityDecision?.category === categoryFilter;
+  const categoryOk =
+  categoryFilter === "All" ||
+  c.issueType === categoryFilter;
 
     return statusOk && categoryOk;
   });
@@ -200,12 +200,22 @@ const openInMaps = (complaint) => {
               setPage(1);
             }}
           >
-            <option>All</option>
-            <option>Pothole</option>
-            <option>Garbage</option>
-            <option>Water Leakage</option>
-            <option>Electrical</option>
-            <option>Road Sign</option>
+<option>All</option>
+<option>Pothole</option>
+<option>Road Damage</option>
+<option>Garbage Dumping</option>
+<option>Drain Blockage</option>
+<option>Water Leakage</option>
+<option>Sewage Overflow</option>
+<option>Streetlight Failure</option>
+<option>Electrical Hazard</option>
+<option>Damaged Road Sign</option>
+<option>Traffic Signal Issue</option>
+<option>Fallen Tree</option>
+<option>Stray Animals</option>
+<option>Construction Debris</option>
+<option>Open Manhole</option>
+<option>Road Accident</option>
           </select>
         </div>
       </div>
@@ -259,10 +269,10 @@ const openInMaps = (complaint) => {
 
 
                 <td>
-                  <span className="badge bg-info text-dark">
-                    {c.aiPrediction?.issueType || "N/A"}
-                  </span>
-                </td>
+  <span className="badge bg-info text-dark">
+    {c.issueType || "Pending"}
+  </span>
+</td>
 
                 <td>
                   <span className={`badge bg-${statusBadge(c.status.statusName)}`}>
@@ -270,17 +280,15 @@ const openInMaps = (complaint) => {
                   </span>
                 </td>
 
-                <td>
-                  {c.authorityDecision?.priority && (
-                    <span
-                      className={`badge bg-${priorityBadge(
-                        c.authorityDecision.priority
-                      )}`}
-                    >
-                      {c.authorityDecision.priority}
-                    </span>
-                  )}
-                </td>
+<td>
+  {c.priority && (
+    <span
+      className={`badge bg-${priorityBadge(c.priority)}`}
+    >
+      {c.priority}
+    </span>
+  )}
+</td>
 
                 <td>
                   {c.authorityDecision?.verified ? (
@@ -313,18 +321,24 @@ const openInMaps = (complaint) => {
                     <button
                       className="btn btn-sm btn-primary"
                       onClick={() =>
-                       setReviewComplaint({
-  ...c,
-  authorityDecision: {
-    category: c.authorityDecision?.category || "Pothole",
-    priority: c.authorityDecision?.priority || "Medium",
-    verified: c.authorityDecision?.verified || false
-  },
-  status: {
-    statusName: c.status?.statusName || "Submitted"
-  }
-})
-                      }
+  setReviewComplaint({
+    ...c,
+    authorityDecision: {
+      category:
+        c.authorityDecision?.verified
+          ? c.authorityDecision.category
+          : c.issueType,
+      priority:
+        c.authorityDecision?.verified
+          ? c.authorityDecision.priority
+          : c.priority,
+      verified: c.authorityDecision?.verified || false
+    },
+    status: {
+      statusName: c.status?.statusName || "Submitted"
+    }
+  })
+}
                     >
                       Review
                     </button>
@@ -414,8 +428,13 @@ const openInMaps = (complaint) => {
       </p>
 
       <p>
-        <strong>AI:</strong> {viewComplaint.aiPrediction?.issueType}
-      </p>
+  <strong>AI:</strong> {viewComplaint.issueType}
+  {viewComplaint.similarityScore && (
+    <span className="text-muted ms-2">
+      ({viewComplaint.similarityScore})
+    </span>
+  )}
+</p>
 
       {viewComplaint.assignedWorker && (
         <>
@@ -601,10 +620,20 @@ const openInMaps = (complaint) => {
                       }
                     >
                       <option>Pothole</option>
-                      <option>Garbage</option>
-                      <option>Water Leakage</option>
-                      <option>Electrical</option>
-                      <option>Road Sign</option>
+  <option>Road Damage</option>
+  <option>Garbage Dumping</option>
+  <option>Drain Blockage</option>
+  <option>Water Leakage</option>
+  <option>Sewage Overflow</option>
+  <option>Streetlight Failure</option>
+  <option>Electrical Hazard</option>
+  <option>Damaged Road Sign</option>
+  <option>Traffic Signal Issue</option>
+  <option>Fallen Tree</option>
+  <option>Stray Animals</option>
+  <option>Construction Debris</option>
+  <option>Open Manhole</option>
+  <option>Road Accident</option>
                     </select>
                   </div>
 

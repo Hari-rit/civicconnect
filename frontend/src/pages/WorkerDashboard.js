@@ -285,15 +285,19 @@ const uploadProof = async (complaintId) => {
 
               {/* ===== DETAILS ===== */}
               <div className="worker-details">
-                <p>
-                  <strong>Category:</strong>{" "}
-                  {c.authorityDecision?.category || "N/A"}
-                </p>
+               <p>
+  <strong>Category:</strong>{" "}
+  {c.authorityDecision?.verified
+    ? c.authorityDecision.category
+    : c.issueType || "N/A"}
+</p>
 
-                <p>
-                  <strong>Priority:</strong>{" "}
-                  {c.authorityDecision?.priority || "N/A"}
-                </p>
+<p>
+  <strong>Priority:</strong>{" "}
+  {c.authorityDecision?.verified
+    ? c.authorityDecision.priority
+    : c.priority || "N/A"}
+</p>
 
                 {c.location?.address && (
                   <p>
@@ -464,14 +468,14 @@ const uploadProof = async (complaintId) => {
                 </div>
 
                 <p className="mb-1">
-                  <strong>Category:</strong>{" "}
-                  {c.authorityDecision?.category}
-                </p>
+  <strong>Category:</strong>{" "}
+  {c.issueType}
+</p>
 
-                <p className="mb-1">
-                  <strong>Priority:</strong>{" "}
-                  {c.authorityDecision?.priority}
-                </p>
+<p className="mb-1">
+  <strong>Priority:</strong>{" "}
+  {c.priority}
+</p>
 
                 <p className="text-muted">
                   Submitted on{" "}

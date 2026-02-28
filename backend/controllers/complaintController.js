@@ -13,60 +13,155 @@ const tokenizer = new natural.WordTokenizer();
 const TfIdf = natural.TfIdf;
 
 const ISSUE_REFERENCE = {
-  "Pothole": "pothole deep hole road surface crack damaged asphalt cavity",
-  "Road Damage": "broken road uneven pavement collapsed surface crack",
-  "Garbage Dumping": "garbage trash waste litter dumped pile roadside dirty",
-  "Drain Blockage": "blocked drain clogged drainage stagnant water overflow",
-  "Water Leakage": "water leak leaking pipe burst pipeline flowing water",
-  "Sewage Overflow": "sewage overflow dirty wastewater bad smell drain",
-  "Streetlight Failure": "streetlight not working no light broken lamp post",
-  "Electrical Hazard": "exposed wire electric pole sparking dangerous electricity",
-  "Damaged Road Sign": "broken road sign bent signboard missing signage",
-  "Traffic Signal Issue": "traffic signal not working red light malfunction junction",
-  "Fallen Tree": "fallen tree blocking road obstruction storm damage",
-  "Stray Animals": "stray dog cattle animal road obstruction traffic hazard",
-  "Construction Debris": "construction waste debris sand bricks rubble road blockage",
-  "Open Manhole": "open manhole uncovered drain open pit dangerous hole",
-  "Road Accident": "road accident vehicle collision crash damaged vehicle obstruction"
+
+  "Pothole":
+    "pothole deep hole cavity road asphalt broken patch cracked surface damaged street depression",
+
+  "Road Damage":
+    "damaged road broken pavement cracked surface collapsed road uneven street destroyed asphalt repair needed",
+
+  "Garbage Dumping":
+    "garbage trash waste litter dumping dumped pile debris junk scrap plastic bags dirty roadside rubbish electronic electronics e-waste",
+
+  "Drain Blockage":
+    "blocked drain clogged drainage stagnant water overflow gutter choke waterlogging roadside drain blocked",
+
+  "Water Leakage":
+    "water leak leaking pipe burst pipeline flowing water dripping tap wet ground broken water line",
+
+  "Sewage Overflow":
+    "sewage overflow dirty wastewater drain spill bad smell contaminated water open sewer gutter overflow",
+
+  "Streetlight Failure":
+    "streetlight not working no light broken lamp post dark street night visibility issue electricity failure",
+
+  "Electrical Hazard":
+    "exposed wire electric pole sparking cable hanging loose live wire dangerous electricity damaged transformer",
+
+  "Damaged Road Sign":
+    "broken road sign bent signboard fallen sign missing signage traffic board damaged pole",
+
+  "Traffic Signal Issue":
+    "traffic signal not working red light malfunction blinking signal junction traffic light failure",
+
+  "Fallen Tree":
+    "fallen tree tree branch storm wind uprooted blocking road obstruction leaves trunk damaged roadside",
+
+  "Stray Animals":
+    "stray dog cattle cow animal roaming road obstruction traffic hazard street animal blocking vehicle",
+
+  "Construction Debris":
+    "construction waste debris sand bricks rubble cement stones building material road blockage construction site",
+
+  "Open Manhole":
+    "open manhole uncovered drain open pit dangerous hole missing cover roadside drain hazard",
+
+  "Road Accident":
+    "road accident vehicle collision crash damaged car overturned vehicle injured obstruction traffic incident"
 };
+
+function getTfIdfVector(tfidf, docIndex) {
+  const terms = tfidf.listTerms(docIndex);
+  const vector = {};
+
+  terms.forEach(item => {
+    vector[item.term] = item.tfidf;
+  });
+
+  return vector;
+}
+
+function cosineSimilarity(vecA, vecB) {
+  const allTerms = new Set([
+    ...Object.keys(vecA),
+    ...Object.keys(vecB)
+  ]);
+
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+
+  allTerms.forEach(term => {
+    const a = vecA[term] || 0;
+    const b = vecB[term] || 0;
+
+    dotProduct += a * b;
+    normA += a * a;
+    normB += b * b;
+  });
+
+  normA = Math.sqrt(normA);
+  normB = Math.sqrt(normB);
+
+  if (normA === 0 || normB === 0) return 0;
+
+  return dotProduct / (normA * normB);
+}
 
 function classifyIssue(caption) {
   const tfidf = new TfIdf();
-  const documents = [caption];
+
+  tfidf.addDocument(caption);
 
   Object.values(ISSUE_REFERENCE).forEach(desc => {
-    documents.push(desc);
+    tfidf.addDocument(desc);
   });
 
-  documents.forEach(doc => tfidf.addDocument(doc));
+  const captionVector = getTfIdfVector(tfidf, 0);
 
   let highestScore = 0;
   let detectedIssue = "Pending Review";
 
   Object.keys(ISSUE_REFERENCE).forEach((issue, index) => {
-    const score = tfidf.tfidf(ISSUE_REFERENCE[issue], 0);
+    const issueVector = getTfIdfVector(tfidf, index + 1);
+    const score = cosineSimilarity(captionVector, issueVector);
+
     if (score > highestScore) {
       highestScore = score;
       detectedIssue = issue;
     }
   });
 
-  return { issueType: detectedIssue, similarityScore: highestScore };
+  return {
+    issueType: detectedIssue,
+    similarityScore: Number(highestScore.toFixed(4))
+  };
 }
 
-function detectPriority(caption) {
+function detectPriority(caption, issueType) {
   caption = caption.toLowerCase();
 
+  // 🔴 Always High Risk Issues
+  const highRiskIssues = [
+    "Road Accident",
+    "Electrical Hazard",
+    "Open Manhole",
+    "Sewage Overflow"
+  ];
+
+  if (highRiskIssues.includes(issueType)) {
+    return "High";
+  }
+
+  // 🔴 Public traffic exposure keywords
   if (
-    caption.includes("hospital") ||
-    caption.includes("school") ||
-    caption.includes("main road") ||
-    caption.includes("highway")
+    caption.includes("road") ||
+    caption.includes("street") ||
+    caption.includes("traffic") ||
+    caption.includes("junction") ||
+    caption.includes("bus") ||
+    caption.includes("vehicle") ||
+    caption.includes("crowded")
   ) {
     return "High";
   }
 
-  if (caption.includes("residential") || caption.includes("market")) {
+  // 🟡 Moderate exposure
+  if (
+    caption.includes("residential") ||
+    caption.includes("market") ||
+    caption.includes("area")
+  ) {
     return "Medium";
   }
 
