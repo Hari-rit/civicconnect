@@ -224,23 +224,75 @@ exports.createComplaint = async (req, res) => {
         console.log("Caption generation failed:", err.message);
       }
     }
+/* =====================================================
+   DUPLICATE DETECTION
+===================================================== */
 
-    const complaint = new Complaint({
-      userId: req.body.userId,
-      location: locationData,
-      media: {
-        type: mediaType,
-        path: `/uploads/${req.file.filename}`
+let duplicateComplaint = null;
+
+// 🔹 Case 1: If GPS available → proximity check
+if (locationData.latitude && locationData.longitude) {
+duplicateComplaint = await Complaint.findOne({
+  issueType,
+  duplicate: false,
+  "status.statusName": { $ne: "Resolved" },
+  "location.latitude": { $ne: null },
+  "location.longitude": { $ne: null },
+  $expr: {
+    $lte: [
+      {
+        $sqrt: {
+          $add: [
+            {
+              $pow: [
+                { $subtract: ["$location.latitude", locationData.latitude] },
+                2
+              ]
+            },
+            {
+              $pow: [
+                { $subtract: ["$location.longitude", locationData.longitude] },
+                2
+              ]
+            }
+          ]
+        }
       },
-      caption,
-      issueType,
-      similarityScore,
-      priority,
-      status: {
-        statusName: "Submitted"
-      }
-    });
+      0.002
+    ]
+  }
+});
+}
 
+// 🔹 Case 2: Manual area match (no GPS)
+if (!duplicateComplaint) {
+  duplicateComplaint = await Complaint.findOne({
+  issueType,
+  duplicate: false,
+  "status.statusName": { $ne: "Resolved" },
+  "location.area": new RegExp(`^${locationData.area}$`, "i")
+});
+}
+const complaint = new Complaint({
+  userId: req.body.userId,
+  location: locationData,
+  media: {
+    type: mediaType,
+    path: `/uploads/${req.file.filename}`
+  },
+  caption,
+  issueType,
+  similarityScore,
+  priority,
+
+  // 🔥 NEW FIELDS
+  duplicate: duplicateComplaint ? true : false,
+  duplicateOf: duplicateComplaint ? duplicateComplaint._id : null,
+
+  status: {
+    statusName: "Submitted"
+  }
+});
     await complaint.save();
 
     res.status(201).json({

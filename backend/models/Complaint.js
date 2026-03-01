@@ -35,27 +35,40 @@ const ComplaintSchema = new mongoose.Schema(
       }
     },
 
-/* ================= AI ANALYSIS ================= */
-caption: {
-  type: String,
-  default: ""
-},
+    /* ================= AI ANALYSIS ================= */
+    caption: {
+      type: String,
+      default: ""
+    },
 
-issueType: {
-  type: String,
-  default: "Pending Review"
-},
+    issueType: {
+      type: String,
+      default: "Pending Review"
+    },
 
-similarityScore: {
-  type: Number,
-  default: 0
-},
+    similarityScore: {
+      type: Number,
+      default: 0
+    },
 
-priority: {
-  type: String,
-  enum: ["Low", "Medium", "High"],
-  default: "Low"
-},
+    priority: {
+      type: String,
+      enum: ["Low", "Medium", "High"],
+      default: "Low"
+    },
+
+    /* ================= DUPLICATE DETECTION ================= */
+
+    duplicate: {
+      type: Boolean,
+      default: false
+    },
+
+    duplicateOf: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Complaint",
+      default: null
+    },
 
     /* ================= AUTHORITY ================= */
     authorityDecision: {
@@ -73,23 +86,20 @@ priority: {
       }
     },
 
-    /* ================= WORKER FLOW (NEW) ================= */
+    /* ================= WORKER FLOW ================= */
 
-    // Assigned worker
     assignedWorker: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null
     },
 
-    // Worker progress status
     workerStatus: {
       type: String,
       enum: ["Not Started", "In Progress", "Work Completed"],
       default: "Not Started"
     },
 
-    // Worker proof image (after completion)
     workerProofImage: {
       type: String,
       default: null
@@ -100,7 +110,6 @@ priority: {
       default: null
     },
 
-    // Workers requesting this complaint
     workRequests: [
       {
         worker: {
