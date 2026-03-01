@@ -33,12 +33,13 @@ function ComplaintStatus() {
     fetchComplaints();
   }, [userId]);
 
-  const getStatusBadge = (status) => {
-    if (status === "Submitted") return "secondary";
-    if (status === "In Progress") return "warning";
-    if (status === "Resolved") return "success";
-    return "secondary";
-  };
+const getStatusBadge = (status) => {
+  if (status === "Submitted") return "secondary";
+  if (status === "In Progress") return "warning";
+  if (status === "Resolved") return "success";
+  if (status === "Duplicate") return "warning"; 
+  return "secondary";
+};
 
   if (loading) {
     return (
@@ -104,6 +105,11 @@ function ComplaintStatus() {
                 >
                   {c.status?.statusName}
                 </span>
+                {c.status?.statusName === "Duplicate" && (
+  <div className="alert alert-warning mt-2 p-2 small">
+    ⚠ This issue has already been reported and is being handled.
+  </div>
+)}
               </div>
 
               <div className="card-footer bg-white border-0 text-muted small">
@@ -198,6 +204,13 @@ function ComplaintStatus() {
                     {selectedComplaint.status?.statusName}
                   </span>
                 </p>
+                {selectedComplaint.status?.statusName === "Duplicate" && (
+  <div className="alert alert-warning mt-2">
+    ⚠ This issue has already been reported.
+    <br />
+    You have been linked to the existing complaint.
+  </div>
+)}
 
                 <p className="text-muted mb-1">
                   <strong>Submitted:</strong>{" "}

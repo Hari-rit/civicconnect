@@ -79,12 +79,12 @@ const ComplaintSchema = new mongoose.Schema(
 
     /* ================= CITIZEN STATUS ================= */
     status: {
-      statusName: {
-        type: String,
-        enum: ["Submitted", "In Progress", "Resolved"],
-        default: "Submitted"
-      }
-    },
+    statusName: {
+      type: String,
+      enum: ["Submitted", "In Progress", "Resolved", "Duplicate"],
+      default: "Submitted"
+    }
+  },
 
     /* ================= WORKER FLOW ================= */
 

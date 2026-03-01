@@ -290,8 +290,8 @@ const complaint = new Complaint({
   duplicateOf: duplicateComplaint ? duplicateComplaint._id : null,
 
   status: {
-    statusName: "Submitted"
-  }
+  statusName: duplicateComplaint ? "Duplicate" : "Submitted"
+}
 });
     await complaint.save();
 

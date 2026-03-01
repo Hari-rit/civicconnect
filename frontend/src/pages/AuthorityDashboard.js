@@ -268,10 +268,16 @@ const openInMaps = (complaint) => {
 
 
 
-                <td>
+<td>
   <span className="badge bg-info text-dark">
     {c.issueType || "Pending"}
   </span>
+
+  {c.duplicate && (
+    <span className="badge bg-danger ms-2">
+      Duplicate
+    </span>
+  )}
 </td>
 
                 <td>
@@ -307,7 +313,7 @@ const openInMaps = (complaint) => {
                       View
                     </button>
                     <button className="btn btn-sm btn-outline-success"title="Open in Google Maps"onClick={() => openInMaps(c)}>Map📍</button>
-                    {c.status?.statusName === "Submitted" && (
+{c.status?.statusName === "Submitted" && !c.duplicate && (
   <button
     className="btn btn-sm btn-warning"
     onClick={() => setAssignComplaint(c)}
@@ -529,7 +535,14 @@ const openInMaps = (complaint) => {
             objectFit: "contain"
           }}
         />
-
+        {reviewComplaint.duplicate && (
+  <div className="alert alert-warning">
+    ⚠ This complaint is marked as duplicate.
+    <br />
+    <strong>Original Complaint ID:</strong>{" "}
+    {reviewComplaint.duplicateOf}
+  </div>
+)}
         {reviewComplaint.assignedWorker && (
           <>
             <hr />
@@ -663,19 +676,21 @@ const openInMaps = (complaint) => {
               <div className="mt-3">
                 <label className="form-label">Status</label>
                 <select
-                  className="form-select"
-                  value={reviewComplaint.status.statusName}
-                  onChange={(e) =>
-                    setReviewComplaint({
-                      ...reviewComplaint,
-                      status: { statusName: e.target.value }
-                    })
-                  }
-                >
-                  <option>Submitted</option>
-                  <option>In Progress</option>
-                  <option>Resolved</option>
-                </select>
+  className="form-select"
+  value={reviewComplaint.status.statusName}
+  disabled={reviewComplaint.duplicate}   // if duplicate
+  onChange={(e) =>
+    setReviewComplaint({
+      ...reviewComplaint,
+      status: { statusName: e.target.value }
+    })
+  }
+>
+  <option>Submitted</option>
+  <option>In Progress</option>
+  <option>Resolved</option>
+  <option>Duplicate</option>
+</select>
               </div>
 
               <div className="d-flex gap-2 mt-4">
@@ -687,10 +702,9 @@ const openInMaps = (complaint) => {
   Cancel
 </button>
 
-{!reviewComplaint.authorityDecision.verified && (
+{!reviewComplaint.authorityDecision.verified && !reviewComplaint.duplicate && (
   <button
     className="btn btn-primary btn-sm"
-    style={{ minWidth: "160px", height: "36px" }}
     onClick={handleVerify}
   >
     Verify Complaint
