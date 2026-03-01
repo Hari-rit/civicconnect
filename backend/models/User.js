@@ -1,31 +1,53 @@
 const mongoose = require("mongoose");
 
+/* ===========================================
+   STANDARDIZED WORKER SKILLS (LOCKED ENUM)
+=========================================== */
+
+const WORKER_SKILLS = [
+  "Road Maintenance",
+  "Waste Management",
+  "Drainage & Sewage",
+  "Water Supply",
+  "Electrical Maintenance",
+  "Traffic & Signals",
+  "Tree & Obstruction Removal",
+  "Animal Control",
+  "Public Infrastructure Repair"
+];
+
 const UserSchema = new mongoose.Schema({
-  name: { 
-    type: String, 
-    required: true 
+  name: {
+    type: String,
+    required: true
   },
 
-  email: { 
-    type: String, 
-    required: true, 
-    unique: true 
+  email: {
+    type: String,
+    required: true,
+    unique: true
   },
 
-  password: { 
-    type: String, 
-    required: true 
+  password: {
+    type: String,
+    required: true
   },
 
-  role: { 
-    type: String, 
+  role: {
+    type: String,
     enum: ["citizen", "authority", "worker"],
     default: "citizen"
   },
 
-  // 🔥 REQUIRED FOR SKILLS FLOW
+  /* ================= WORKER SKILLS ================= */
+
   workerSkills: {
-    type: [String],
+    type: [
+      {
+        type: String,
+        enum: WORKER_SKILLS
+      }
+    ],
     default: []
   },
 
@@ -35,9 +57,9 @@ const UserSchema = new mongoose.Schema({
     default: "Pending"
   },
 
-  createdAt: { 
-    type: Date, 
-    default: Date.now 
+  createdAt: {
+    type: Date,
+    default: Date.now
   }
 });
 

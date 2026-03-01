@@ -100,15 +100,54 @@ exports.getAvailableComplaints = async (req, res) => {
       return res.json([]);
     }
 
+    /* ================= ISSUE → SKILL MAP ================= */
+
+    const ISSUE_SKILL_MAP = {
+      "Pothole": "Road Maintenance",
+      "Road Damage": "Road Maintenance",
+
+      "Garbage Dumping": "Waste Management",
+      "Construction Debris": "Waste Management",
+
+      "Drain Blockage": "Drainage & Sewage",
+      "Sewage Overflow": "Drainage & Sewage",
+
+      "Water Leakage": "Water Supply",
+
+      "Streetlight Failure": "Electrical Maintenance",
+      "Electrical Hazard": "Electrical Maintenance",
+
+      "Traffic Signal Issue": "Traffic & Signals",
+      "Road Accident": "Traffic & Signals",
+
+      "Fallen Tree": "Tree & Obstruction Removal",
+
+      "Stray Animals": "Animal Control",
+
+      "Damaged Road Sign": "Public Infrastructure Repair",
+      "Open Manhole": "Public Infrastructure Repair"
+    };
+
     const complaints = await Complaint.find({
       "authorityDecision.verified": true,
       assignedWorker: null,
-      "authorityDecision.category": { $in: worker.workerSkills },
+      "status.statusName": "Submitted",
       "workRequests.worker": { $ne: worker._id }
     }).sort({ createdAt: -1 });
 
-    res.json(complaints);
+    /* ================= SKILL-BASED FILTER ================= */
+
+    const filtered = complaints.filter((complaint) => {
+      const issue = complaint.issueType || complaint.authorityDecision?.category;
+      const requiredSkill = ISSUE_SKILL_MAP[issue];
+
+      return worker.workerSkills.includes(requiredSkill);
+    });
+
+    res.json(filtered);
+
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Failed to fetch available works" });
   }
 };

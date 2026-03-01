@@ -2,11 +2,15 @@ import React, { useState } from "react";
 import axios from "axios";
 
 const ALL_SKILLS = [
-  "Garbage",
-  "Pothole",
-  "Water Leakage",
-  "Electrical",
-  "Road Sign"
+  "Road Maintenance",
+  "Waste Management",
+  "Drainage & Sewage",
+  "Water Supply",
+  "Electrical Maintenance",
+  "Traffic & Signals",
+  "Tree & Obstruction Removal",
+  "Animal Control",
+  "Public Infrastructure Repair"
 ];
 
 const WorkerSkillsPopup = ({ userId, onSaved }) => {
@@ -14,7 +18,7 @@ const WorkerSkillsPopup = ({ userId, onSaved }) => {
   const [saving, setSaving] = useState(false);
 
   const toggleSkill = (skill) => {
-    if (saving) return; // 🔒 prevent changes while saving
+    if (saving) return;
 
     setSelectedSkills((prev) =>
       prev.includes(skill)
@@ -36,14 +40,13 @@ const WorkerSkillsPopup = ({ userId, onSaved }) => {
         "http://localhost:5000/worker/profile",
         {
           workerSkills: selectedSkills,
-          skillsCompleted: true // 🔑 IMPORTANT
+          skillsCompleted: true
         },
         {
-          headers: { "x-user-id": userId }
+          headers: { Authorization: `Bearer ${userId}` }
         }
       );
 
-      // 🔒 notify dashboard ONLY after success
       onSaved();
     } catch (err) {
       alert(
@@ -62,18 +65,25 @@ const WorkerSkillsPopup = ({ userId, onSaved }) => {
     >
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content p-4">
-          <h5 className="mb-3">Select Your Skills</h5>
+          <h5 className="mb-2">Select Your Specializations</h5>
+          <p className="text-muted small">
+            Choose the types of civic issues you are qualified to handle.
+          </p>
 
           {ALL_SKILLS.map((skill) => (
             <div key={skill} className="form-check mb-2">
               <input
                 type="checkbox"
                 className="form-check-input"
+                id={skill}
                 checked={selectedSkills.includes(skill)}
                 disabled={saving}
                 onChange={() => toggleSkill(skill)}
               />
-              <label className="form-check-label">
+              <label
+                className="form-check-label"
+                htmlFor={skill}
+              >
                 {skill}
               </label>
             </div>
