@@ -37,7 +37,8 @@ const getStatusBadge = (status) => {
   if (status === "Submitted") return "secondary";
   if (status === "In Progress") return "warning";
   if (status === "Resolved") return "success";
-  if (status === "Duplicate") return "warning"; 
+  if (status === "Rejected") return "danger";
+  if (status === "Duplicate") return "dark"; 
   return "secondary";
 };
 

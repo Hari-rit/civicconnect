@@ -81,7 +81,7 @@ const ComplaintSchema = new mongoose.Schema(
     status: {
     statusName: {
       type: String,
-      enum: ["Submitted", "In Progress", "Resolved", "Duplicate"],
+      enum: ["Submitted", "In Progress", "Resolved", "Duplicate", "Rejected"],
       default: "Submitted"
     }
   },

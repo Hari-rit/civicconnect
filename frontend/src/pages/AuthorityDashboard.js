@@ -690,6 +690,7 @@ const openInMaps = (complaint) => {
   <option>In Progress</option>
   <option>Resolved</option>
   <option>Duplicate</option>
+  <option>Rejected</option>
 </select>
               </div>
 

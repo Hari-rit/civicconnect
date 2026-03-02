@@ -82,6 +82,7 @@ exports.updateWorkerProfile = async (req, res) => {
 exports.getAvailableComplaints = async (req, res) => {
   try {
     const workerId = getUserIdFromAuthHeader(req);
+
     if (!workerId) {
       return res.status(401).json({ message: "Unauthorized" });
     }
@@ -128,23 +129,23 @@ exports.getAvailableComplaints = async (req, res) => {
       "Open Manhole": "Public Infrastructure Repair"
     };
 
+    /* ================= FIND ISSUES MATCHING WORKER SKILLS ================= */
+
+    const allowedIssues = Object.keys(ISSUE_SKILL_MAP).filter(issue =>
+      worker.workerSkills.includes(ISSUE_SKILL_MAP[issue])
+    );
+
+    /* ================= FETCH MATCHING COMPLAINTS ================= */
+
     const complaints = await Complaint.find({
+      issueType: { $in: allowedIssues },
       "authorityDecision.verified": true,
-      assignedWorker: null,
       "status.statusName": "Submitted",
+      assignedWorker: null,
       "workRequests.worker": { $ne: worker._id }
     }).sort({ createdAt: -1 });
 
-    /* ================= SKILL-BASED FILTER ================= */
-
-    const filtered = complaints.filter((complaint) => {
-      const issue = complaint.issueType || complaint.authorityDecision?.category;
-      const requiredSkill = ISSUE_SKILL_MAP[issue];
-
-      return worker.workerSkills.includes(requiredSkill);
-    });
-
-    res.json(filtered);
+    res.json(complaints);
 
   } catch (err) {
     console.error(err);
