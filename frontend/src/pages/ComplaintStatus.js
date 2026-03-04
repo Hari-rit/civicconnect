@@ -10,6 +10,9 @@ function ComplaintStatus() {
   const [error, setError] = useState("");
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [zoomMedia, setZoomMedia] = useState(null);
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+
 
   useEffect(() => {
     const fetchComplaints = async () => {
@@ -41,7 +44,39 @@ const getStatusBadge = (status) => {
   if (status === "Duplicate") return "dark"; 
   return "secondary";
 };
+const submitFeedback = async () => {
 
+  if (!rating) {
+    alert("Please select a rating");
+    return;
+  }
+
+  try {
+
+    await axios.post(
+      `http://localhost:5000/complaints/${selectedComplaint._id}/feedback`,
+      {
+        rating,
+        comment
+      }
+    );
+
+    alert("Feedback submitted successfully");
+
+    setRating(0);
+    setComment("");
+
+    setSelectedComplaint(null);
+
+    window.location.reload();
+
+  } catch (err) {
+
+    alert("Failed to submit feedback");
+
+  }
+
+};
   if (loading) {
     return (
       <div className="container mt-4 alert alert-info">
@@ -222,6 +257,7 @@ const getStatusBadge = (status) => {
 
                 {selectedComplaint.updatedAt !==
                   selectedComplaint.createdAt && (
+                    
                   <p className="text-muted">
                     <strong>Last updated:</strong>{" "}
                     {new Date(
@@ -229,6 +265,71 @@ const getStatusBadge = (status) => {
                     ).toLocaleString()}
                   </p>
                 )}
+                {/* ================= FEEDBACK SECTION ================= */}
+
+{selectedComplaint.status?.statusName === "Resolved" &&
+ !selectedComplaint.feedback?.rating && (
+
+<div className="mt-4">
+
+<hr />
+
+<h6 className="fw-bold">Rate Resolution</h6>
+
+<div className="mb-2">
+
+{[1,2,3,4,5].map((star) => (
+<span
+key={star}
+style={{
+fontSize: "22px",
+cursor: "pointer",
+color: star <= rating ? "#ffc107" : "#ccc"
+}}
+onClick={() => setRating(star)}
+>
+★
+</span>
+))}
+
+</div>
+
+<textarea
+className="form-control mb-2"
+placeholder="Write your feedback..."
+value={comment}
+onChange={(e) => setComment(e.target.value)}
+/>
+
+<button
+className="btn btn-primary btn-sm"
+onClick={submitFeedback}
+>
+Submit Feedback
+</button>
+
+</div>
+
+)}
+{selectedComplaint.feedback?.rating && (
+
+<div className="alert alert-success mt-3">
+
+<strong>Your Feedback</strong>
+
+<br/>
+
+Rating: {"⭐".repeat(selectedComplaint.feedback.rating)}
+
+{selectedComplaint.feedback.comment && (
+<p className="mb-0">
+{selectedComplaint.feedback.comment}
+</p>
+)}
+
+</div>
+
+)}
               </div>
             </div>
           </div>

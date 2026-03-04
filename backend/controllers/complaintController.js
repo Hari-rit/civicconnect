@@ -449,3 +449,113 @@ exports.requestWork = async (req, res) => {
     res.status(500).json({ message: "Failed to request work" });
   }
 };
+/* =====================================================
+   CITIZEN: SUBMIT FEEDBACK
+===================================================== */
+exports.submitFeedback = async (req, res) => {
+  try {
+
+    const { rating, comment } = req.body;
+
+    const complaint = await Complaint.findById(req.params.id);
+
+    if (!complaint) {
+      return res.status(404).json({
+        message: "Complaint not found"
+      });
+    }
+
+    // Only allow feedback after resolution
+    if (complaint.status.statusName !== "Resolved") {
+      return res.status(400).json({
+        message: "Feedback allowed only after resolution"
+      });
+    }
+
+    // Prevent multiple feedback submissions
+    if (complaint.feedback && complaint.feedback.rating) {
+      return res.status(400).json({
+        message: "Feedback already submitted"
+      });
+    }
+
+    complaint.feedback = {
+      rating,
+      comment,
+      submittedAt: new Date()
+    };
+
+    await complaint.save();
+
+    res.json({
+      message: "Feedback submitted successfully"
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      message: "Failed to submit feedback"
+    });
+
+  }
+};
+/* =====================================================
+   FEEDBACK ANALYTICS (Authority Dashboard)
+===================================================== */
+exports.getFeedbackAnalytics = async (req, res) => {
+  try {
+
+    const complaints = await Complaint.find({
+      "feedback.rating": { $ne: null }
+    });
+
+    if (complaints.length === 0) {
+      return res.json({
+        totalFeedback: 0,
+        averageRating: 0,
+        distribution: {
+          1: 0,
+          2: 0,
+          3: 0,
+          4: 0,
+          5: 0
+        }
+      });
+    }
+
+    let totalRating = 0;
+
+    const distribution = {
+      1: 0,
+      2: 0,
+      3: 0,
+      4: 0,
+      5: 0
+    };
+
+    complaints.forEach((c) => {
+      const r = c.feedback.rating;
+      totalRating += r;
+      distribution[r]++;
+    });
+
+    const averageRating = (totalRating / complaints.length).toFixed(2);
+
+    res.json({
+      totalFeedback: complaints.length,
+      averageRating,
+      distribution
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      message: "Failed to fetch feedback analytics"
+    });
+
+  }
+};

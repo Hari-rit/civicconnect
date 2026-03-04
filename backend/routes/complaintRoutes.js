@@ -9,7 +9,9 @@ const {
   updateComplaintStatus,
   verifyComplaint,
   getAvailableWorks,
-  requestWork
+  requestWork,
+  submitFeedback,
+  getFeedbackAnalytics
 } = require("../controllers/complaintController");
 
 /* ===============================
@@ -22,6 +24,10 @@ router.post("/", upload.single("media"), createComplaint);
 // Get complaints by logged-in user
 router.get("/user/:userId", getComplaintsByUser);
 
+// Submit feedback
+router.post("/:id/feedback", submitFeedback);
+
+
 /* ===============================
    Worker Routes
 =============================== */
@@ -32,6 +38,7 @@ router.get("/available", getAvailableWorks);
 // Worker requests a complaint
 router.post("/:id/request", requestWork);
 
+
 /* ===============================
    Authority Routes
 =============================== */
@@ -39,10 +46,14 @@ router.post("/:id/request", requestWork);
 // Get all complaints
 router.get("/", getAllComplaints);
 
-// Update complaint status (Submitted / In Progress / Resolved)
+// Update complaint status
 router.put("/:id/status", updateComplaintStatus);
 
-// Verify AI prediction, set category & priority
+// Verify complaint
 router.put("/:id/verify", verifyComplaint);
+
+// 🔹 Feedback analytics for dashboard
+router.get("/feedback/analytics", getFeedbackAnalytics);
+
 
 module.exports = router;
