@@ -11,6 +11,7 @@ function AuthorityDashboard() {
   const [zoomMedia, setZoomMedia] = useState(null);
   const [loading, setLoading] = useState(true);
   const [assignComplaint, setAssignComplaint] = useState(null);
+  const [feedbackStats, setFeedbackStats] = useState(null);
 
   const [statusFilter, setStatusFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -20,7 +21,19 @@ function AuthorityDashboard() {
 
   useEffect(() => {
     fetchComplaints();
+    fetchFeedbackStats();   // ⭐ NEW
   }, []);
+
+  const fetchFeedbackStats = async () => {
+    try {
+      const res = await axios.get(
+        "http://localhost:5000/complaints/feedback/analytics"
+      );
+      setFeedbackStats(res.data);
+    } catch (err) {
+      console.error("Failed to fetch feedback stats", err);
+    }
+  };
 
   const fetchComplaints = async () => {
     try {
@@ -153,25 +166,44 @@ const openInMaps = (complaint) => {
       <h3 className="fw-bold mb-4">Authority Dashboard</h3>
 
 
-      {/* ================= ANALYTICS ================= */}
-      <div className="row g-3 mb-4">
-        {[
-          { label: "Total", value: total },
-          { label: "Submitted", value: submitted },
-          { label: "In Progress", value: inProgress },
-          { label: "Resolved", value: resolved },
-          { label: "Verified", value: verifiedCount }
-        ].map((item, i) => (
-          <div className="col-md-2" key={i}>
-            <div className="card shadow-sm text-center">
-              <div className="card-body">
-                <h6 className="text-muted">{item.label}</h6>
-                <h4 className="fw-bold">{item.value}</h4>
-              </div>
-            </div>
-          </div>
-        ))}
+{/* ================= ANALYTICS ================= */}
+<div className="row g-3 mb-4">
+
+  {[
+    { label: "Total", value: total },
+    { label: "Submitted", value: submitted },
+    { label: "In Progress", value: inProgress },
+    { label: "Resolved", value: resolved },
+    { label: "Verified", value: verifiedCount }
+  ].map((item, i) => (
+    <div className="col-md-2" key={i}>
+      <div className="card shadow-sm text-center">
+        <div className="card-body">
+          <h6 className="text-muted">{item.label}</h6>
+          <h4 className="fw-bold">{item.value}</h4>
+        </div>
       </div>
+    </div>
+  ))}
+
+  {/* ⭐ FEEDBACK ANALYTICS CARD */}
+  {feedbackStats && (
+    <div className="col-md-2">
+      <div className="card shadow-sm text-center">
+        <div className="card-body">
+          <h6 className="text-muted">Citizen Rating</h6>
+          <h4 className="fw-bold">
+            ⭐ {feedbackStats.averageRating}
+          </h4>
+          <small className="text-muted">
+            {feedbackStats.totalFeedback} feedback
+          </small>
+        </div>
+      </div>
+    </div>
+  )}
+
+</div>
 
       {/* ================= FILTERS ================= */}
       <div className="row g-3 mb-3">
@@ -441,6 +473,33 @@ const openInMaps = (complaint) => {
     </span>
   )}
 </p>
+{/* ================= CITIZEN FEEDBACK ================= */}
+{viewComplaint.feedback && viewComplaint.feedback.rating && (
+  <>
+    <hr />
+
+    <h6 className="fw-bold">Citizen Feedback</h6>
+
+    <p className="mb-1">
+      <strong>Rating:</strong>{" "}
+      {"⭐".repeat(viewComplaint.feedback.rating)}
+    </p>
+
+    {viewComplaint.feedback.comment && (
+      <p className="mb-1">
+        <strong>Comment:</strong>{" "}
+        {viewComplaint.feedback.comment}
+      </p>
+    )}
+
+    <small className="text-muted">
+      Submitted on{" "}
+      {new Date(
+        viewComplaint.feedback.submittedAt
+      ).toLocaleString()}
+    </small>
+  </>
+)}
 
       {viewComplaint.assignedWorker && (
         <>
